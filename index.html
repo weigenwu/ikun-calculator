@@ -713,7 +713,7 @@
     <header class="topbar">
       <div class="brand-copy">
         <h1>外实东区计算器</h1>
-        <p class="subtitle">Fast Read 102 细胞计数、qPCR 配液、qPCR 数据分析、BCA/WB 上样量、慢病毒包装计算</p>
+        <p class="subtitle">Fast Read 102 细胞计数、细胞铺板、药物梯度、qPCR 配液、qPCR 数据分析、BCA/WB 上样量、慢病毒包装计算</p>
       </div>
       <div class="hero-side">
         <div>
@@ -728,6 +728,8 @@
 
     <nav class="tabs" aria-label="计算器模块">
       <button class="tab-button active" type="button" data-tab="cell" aria-controls="panel-cell">细胞计数板</button>
+      <button class="tab-button" type="button" data-tab="seeding" aria-controls="panel-seeding">细胞铺板</button>
+      <button class="tab-button" type="button" data-tab="drug" aria-controls="panel-drug">药物梯度</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
       <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
       <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
@@ -779,6 +781,124 @@
           <div class="section-title">提醒</div>
           <div>如果以后改成细胞液和台盼蓝 1:1 混合计数，当前浓度需要乘以 2。</div>
           <div class="help">边界细胞建议固定计入两条边，例如左边和上边计入，右边和下边不计入。</div>
+        </details>
+      </section>
+
+      <section id="panel-seeding" class="tool-panel" data-panel="seeding">
+        <div class="module-head">
+          <div>
+            <h2>细胞铺板计算器</h2>
+            <p class="module-note">按当前细胞浓度、目标每孔细胞数和孔数，计算每孔及总量需要加入的细胞悬液和培养基。</p>
+          </div>
+          <div class="quick-note">适合 6/12/24/48/96 孔板铺板前快速配悬液。</div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label for="seed-conc">当前细胞浓度 cells/mL</label>
+            <input id="seed-conc" type="number" min="0" step="any" inputmode="decimal" value="1500000" />
+            <div class="help">可直接填上一个计数模块算出的浓度。</div>
+          </div>
+          <div>
+            <label for="seed-target">目标每孔细胞数 cells/well</label>
+            <input id="seed-target" type="number" min="0" step="any" inputmode="decimal" value="200000" />
+          </div>
+          <div>
+            <label for="seed-wells">实际铺板孔数</label>
+            <input id="seed-wells" type="number" min="1" step="1" inputmode="numeric" value="6" />
+          </div>
+          <div>
+            <label for="seed-plate">孔板类型</label>
+            <select id="seed-plate">
+              <option value="2000">6 孔板（2 mL/孔）</option>
+              <option value="1000">12 孔板（1 mL/孔）</option>
+              <option value="500">24 孔板（500 µL/孔）</option>
+              <option value="250">48 孔板（250 µL/孔）</option>
+              <option value="100">96 孔板（100 µL/孔）</option>
+              <option value="custom">自定义</option>
+            </select>
+          </div>
+          <div>
+            <label for="seed-final-vol">每孔终体积 µL</label>
+            <input id="seed-final-vol" type="number" min="0" step="any" inputmode="decimal" value="2000" />
+          </div>
+          <div>
+            <label for="seed-extra">额外多配比例 %</label>
+            <input id="seed-extra" type="number" min="0" step="any" inputmode="decimal" value="10" />
+            <div class="help">推荐 5% 到 15%，避免移液损耗。</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="seed-calc">计算铺板配液</button>
+          <button class="action secondary" type="button" id="seed-example">填入示例</button>
+        </div>
+
+        <div id="seed-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div><span class="formula">每孔细胞悬液体积 = 目标每孔细胞数 / 当前细胞浓度</span></div>
+          <div><span class="formula">每孔培养基体积 = 每孔终体积 - 每孔细胞悬液体积</span></div>
+          <div><span class="formula">总量 = 每孔体积 × 孔数 × (1 + 多配比例)</span></div>
+        </details>
+      </section>
+
+      <section id="panel-drug" class="tool-panel" data-panel="drug">
+        <div class="module-head">
+          <div>
+            <h2>药物梯度处理计算器</h2>
+            <p class="module-note">输入药物母液浓度和目标处理浓度列表，自动计算每个浓度需要的母液、培养基和溶剂比例。</p>
+          </div>
+          <div class="quick-note">默认母液单位 mM，处理终浓度单位 µM。</div>
+        </div>
+
+        <div class="two-col">
+          <div class="panel">
+            <label for="drug-targets">目标终浓度 µM</label>
+            <textarea id="drug-targets">0, 1, 2, 5, 10</textarea>
+            <div class="help">可用逗号、空格或换行分隔。0 会作为 vehicle/control 组。</div>
+          </div>
+          <div class="panel">
+            <div class="grid">
+              <div>
+                <label for="drug-stock">药物母液浓度 mM</label>
+                <input id="drug-stock" type="number" min="0" step="any" inputmode="decimal" value="10" />
+              </div>
+              <div>
+                <label for="drug-final-vol">每孔终体积 µL</label>
+                <input id="drug-final-vol" type="number" min="0" step="any" inputmode="decimal" value="1000" />
+              </div>
+              <div>
+                <label for="drug-wells">每个浓度孔数</label>
+                <input id="drug-wells" type="number" min="1" step="1" inputmode="numeric" value="3" />
+              </div>
+              <div>
+                <label for="drug-extra">额外多配比例 %</label>
+                <input id="drug-extra" type="number" min="0" step="any" inputmode="decimal" value="10" />
+              </div>
+              <div>
+                <label for="drug-min-pipette">最小建议移液体积 µL</label>
+                <input id="drug-min-pipette" type="number" min="0" step="any" inputmode="decimal" value="0.5" />
+                <div class="help">低于该体积时提示先配中间液。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="drug-calc">计算药物梯度</button>
+          <button class="action secondary" type="button" id="drug-example">填入示例</button>
+        </div>
+
+        <div id="drug-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div><span class="formula">母液体积 = 目标终浓度 / 母液浓度 × 终体积</span></div>
+          <div><span class="formula">培养基体积 = 终体积 - 母液体积</span></div>
+          <div><span class="formula">溶剂比例 = 母液体积 / 终体积 × 100%</span></div>
+          <div class="help">如果不同浓度组需要严格保持一致 DMSO/溶剂比例，建议用最高浓度组的溶剂比例给低浓度组补 vehicle。</div>
         </details>
       </section>
 
@@ -1353,6 +1473,191 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("cell-volume").value = "1";
         $("cell-target-conc").value = "1500000";
         calculateCell();
+      }
+
+      function handleSeedPlateChange() {
+        const value = $("seed-plate").value;
+        if (value !== "custom") $("seed-final-vol").value = value;
+      }
+
+      function calculateSeeding() {
+        const conc = getNumber("seed-conc");
+        const targetCells = getNumber("seed-target");
+        const wells = parseInt($("seed-wells").value, 10);
+        const finalVolUl = getNumber("seed-final-vol");
+        const extraPct = getNumber("seed-extra");
+
+        if (!isFinite(conc) || conc <= 0 || !isFinite(targetCells) || targetCells <= 0 ||
+          !Number.isInteger(wells) || wells <= 0 || !isFinite(finalVolUl) || finalVolUl <= 0 ||
+          !isFinite(extraPct) || extraPct < 0) {
+          setResult("seed-result", "<p class=\"result-title\">细胞铺板参数不完整，请检查浓度、目标细胞数、孔数、终体积和多配比例。</p>", "danger");
+          return false;
+        }
+
+        const extraFactor = 1 + extraPct / 100;
+        const cellVolPerWellUl = targetCells / conc * 1000;
+        const mediumPerWellUl = finalVolUl - cellVolPerWellUl;
+        const totalWells = wells * extraFactor;
+        const totalCellVolUl = cellVolPerWellUl * totalWells;
+        const totalMediumUl = mediumPerWellUl * totalWells;
+        const totalMixUl = finalVolUl * totalWells;
+        const totalCells = targetCells * wells * extraFactor;
+        const seedingConc = targetCells / (finalVolUl / 1000);
+
+        let tone = "ok";
+        const notices = [];
+        if (mediumPerWellUl < -1e-9) {
+          tone = "danger";
+          notices.push("当前细胞浓度不足，达到目标每孔细胞数所需细胞悬液体积已经超过每孔终体积。建议离心浓缩细胞或降低目标细胞数。");
+        } else if (mediumPerWellUl < finalVolUl * 0.1) {
+          tone = "warn";
+          notices.push("细胞悬液占比偏高，建议确认铺板终体积是否足够，或先浓缩细胞后再铺板。");
+        }
+
+        const rows = [
+          ["当前细胞浓度", `${fmt(conc, 0)} cells/mL<br>${sci(conc)} cells/mL`],
+          ["目标每孔细胞数", `${fmtInt(targetCells)} cells/well`],
+          ["每孔终体积", `${fmt(finalVolUl, 3)} µL`],
+          ["每孔细胞悬液", `<strong>${fmt(cellVolPerWellUl, 3)} µL</strong>`],
+          ["每孔培养基", `<strong>${fmt(mediumPerWellUl, 3)} µL</strong>`],
+          ["实际孔数", `${fmtInt(wells)} 孔`],
+          ["多配后等效孔数", `${fmt(totalWells, 3)} 孔`],
+          ["总细胞悬液", `<strong>${fmt(totalCellVolUl, 3)} µL</strong>`],
+          ["总培养基", `<strong>${fmt(totalMediumUl, 3)} µL</strong>`],
+          ["总混合液", `${fmt(totalMixUl, 3)} µL`]
+        ];
+
+        let html = `
+          <p class="result-title">细胞铺板配液结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmt(cellVolPerWellUl, 3)} µL</strong><span>每孔细胞悬液</span></div>
+            <div class="metric"><strong>${fmt(mediumPerWellUl, 3)} µL</strong><span>每孔培养基</span></div>
+            <div class="metric"><strong>${fmt(totalCellVolUl, 3)} µL</strong><span>总细胞悬液</span></div>
+            <div class="metric"><strong>${fmt(totalMediumUl, 3)} µL</strong><span>总培养基</span></div>
+          </div>
+          <div class="small">铺板后终浓度约 ${fmt(seedingConc, 0)} cells/mL；总细胞需求约 ${fmtInt(totalCells)} cells。</div>
+          ${table(["项目", "结果"], rows)}
+        `;
+
+        html += notices.length
+          ? notices.map((text) => `<div class="notice ${tone === "danger" ? "danger" : "warn"}"><strong>提醒：</strong>${escapeHtml(text)}</div>`).join("")
+          : `<div class="notice ok"><strong>建议记录：</strong>${fmtInt(wells)} 孔；每孔 ${fmtInt(targetCells)} cells；每孔加入细胞悬液 ${fmt(cellVolPerWellUl, 3)} µL，培养基 ${fmt(mediumPerWellUl, 3)} µL。</div>`;
+
+        setResult("seed-result", html, tone);
+        return tone !== "danger";
+      }
+
+      function fillSeedingExample() {
+        $("seed-conc").value = "1500000";
+        $("seed-target").value = "200000";
+        $("seed-wells").value = "6";
+        $("seed-plate").value = "2000";
+        $("seed-final-vol").value = "2000";
+        $("seed-extra").value = "10";
+        calculateSeeding();
+      }
+
+      function parseDrugTargets(text) {
+        return parseNumbers(text).filter((value, index, values) => values.indexOf(value) === index).sort((a, b) => a - b);
+      }
+
+      function calculateDrugGradient() {
+        const stockMm = getNumber("drug-stock");
+        const finalVolUl = getNumber("drug-final-vol");
+        const wells = parseInt($("drug-wells").value, 10);
+        const extraPct = getNumber("drug-extra");
+        const minPipetteUl = getNumber("drug-min-pipette");
+        const targets = parseDrugTargets($("drug-targets").value);
+
+        if (!isFinite(stockMm) || stockMm <= 0 || !isFinite(finalVolUl) || finalVolUl <= 0 ||
+          !Number.isInteger(wells) || wells <= 0 || !isFinite(extraPct) || extraPct < 0 ||
+          !isFinite(minPipetteUl) || minPipetteUl < 0 || !targets.length || targets.some((value) => value < 0)) {
+          setResult("drug-result", "<p class=\"result-title\">药物梯度参数不完整，请检查母液浓度、目标浓度、每孔体积、孔数和多配比例。</p>", "danger");
+          return false;
+        }
+
+        const stockUm = stockMm * 1000;
+        const extraFactor = 1 + extraPct / 100;
+        let hasWarn = false;
+        let hasDanger = false;
+        const rows = targets.map((targetUm) => {
+          const stockPerWellUl = targetUm / stockUm * finalVolUl;
+          const mediumPerWellUl = finalVolUl - stockPerWellUl;
+          const stockTotalUl = stockPerWellUl * wells * extraFactor;
+          const mediumTotalUl = mediumPerWellUl * wells * extraFactor;
+          const solventPct = finalVolUl > 0 ? stockPerWellUl / finalVolUl * 100 : NaN;
+          let status = "OK";
+          if (targetUm === 0) {
+            status = "Vehicle/control";
+          } else if (mediumPerWellUl < -1e-9) {
+            status = "母液体积超过终体积";
+            hasDanger = true;
+          } else if (stockPerWellUl > 0 && stockPerWellUl < minPipetteUl) {
+            status = "单孔母液体积偏小，建议先配中间液";
+            hasWarn = true;
+          }
+          return {
+            targetUm,
+            stockPerWellUl,
+            mediumPerWellUl,
+            stockTotalUl,
+            mediumTotalUl,
+            solventPct,
+            status
+          };
+        });
+
+        const maxSolventPct = Math.max(...rows.map((row) => isFinite(row.solventPct) ? row.solventPct : 0));
+        const maxStockPerWellUl = Math.max(...rows.map((row) => isFinite(row.stockPerWellUl) ? row.stockPerWellUl : 0));
+        const tableRows = rows.map((row) => {
+          const vehicleTopUpPerWellUl = Math.max(maxStockPerWellUl - row.stockPerWellUl, 0);
+          const equalVehicleMediumPerWellUl = finalVolUl - row.stockPerWellUl - vehicleTopUpPerWellUl;
+          return [
+            `${fmt(row.targetUm, 4)} µM`,
+            fmt(row.stockPerWellUl, 4),
+            fmt(vehicleTopUpPerWellUl, 4),
+            fmt(equalVehicleMediumPerWellUl, 4),
+            fmt(row.stockTotalUl, 4),
+            fmt(vehicleTopUpPerWellUl * wells * extraFactor, 4),
+            fmt(equalVehicleMediumPerWellUl * wells * extraFactor, 4),
+            `${fmt(row.solventPct, 4)}%`,
+            escapeHtml(row.status)
+          ];
+        });
+
+        let tone = hasDanger ? "danger" : (hasWarn ? "warn" : "ok");
+        let html = `
+          <p class="result-title">药物梯度配液结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmt(stockMm, 3)} mM</strong><span>药物母液浓度</span></div>
+            <div class="metric"><strong>${fmt(finalVolUl, 3)} µL</strong><span>每孔终体积</span></div>
+            <div class="metric"><strong>${fmtInt(wells)}</strong><span>每个浓度孔数</span></div>
+            <div class="metric"><strong>${fmt(maxSolventPct, 4)}%</strong><span>最高溶剂比例</span></div>
+          </div>
+          <div class="small">表格按最高浓度组的 vehicle 比例，给低浓度组补足 vehicle 后计算培养基体积。</div>
+          ${table(["目标浓度", "母液/孔 µL", "补 vehicle/孔 µL", "培养基/孔 µL", "母液总量 µL", "补 vehicle 总量 µL", "培养基总量 µL", "溶剂比例", "判断"], tableRows)}
+        `;
+
+        if (hasDanger) {
+          html += `<div class="notice danger"><strong>提醒：</strong>至少有一个目标浓度无法由当前母液和终体积直接配出，请提高母液浓度或降低目标浓度。</div>`;
+        } else if (hasWarn) {
+          html += `<div class="notice warn"><strong>提醒：</strong>部分组单孔母液体积低于 ${fmt(minPipetteUl, 3)} µL，建议先配中间工作液，减少移液误差。</div>`;
+        } else {
+          html += `<div class="notice ok"><strong>建议记录：</strong>按 ${fmt(extraPct, 1)}% 多配；最高 vehicle 比例 ${fmt(maxSolventPct, 4)}%。</div>`;
+        }
+
+        setResult("drug-result", html, tone);
+        return !hasDanger;
+      }
+
+      function fillDrugExample() {
+        $("drug-targets").value = "0, 1, 2, 5, 10";
+        $("drug-stock").value = "10";
+        $("drug-final-vol").value = "1000";
+        $("drug-wells").value = "3";
+        $("drug-extra").value = "10";
+        $("drug-min-pipette").value = "0.5";
+        calculateDrugGradient();
       }
 
       function calculateRT(samples) {
@@ -2690,6 +2995,11 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
 
         $("cell-calc").addEventListener("click", calculateCell);
         $("cell-example").addEventListener("click", fillCellExample);
+        $("seed-plate").addEventListener("change", handleSeedPlateChange);
+        $("seed-calc").addEventListener("click", calculateSeeding);
+        $("seed-example").addEventListener("click", fillSeedingExample);
+        $("drug-calc").addEventListener("click", calculateDrugGradient);
+        $("drug-example").addEventListener("click", fillDrugExample);
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("qpa-file").addEventListener("change", handleQpcrAnalysisFile);
@@ -2715,7 +3025,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       qpaUpdateCompareModeUi();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "qpcr", "qpcrdata", "bca", "virus"].includes(initialTab)) {
+      if (["cell", "seeding", "drug", "qpcr", "qpcrdata", "bca", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
