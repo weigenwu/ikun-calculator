@@ -1833,6 +1833,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         });
 
         const controlSummary = summaries.find((entry) => qpaNorm(entry.sample) === control);
+        if (!controlSummary || controlSummary.pairN <= 0) throw new Error("对照样本缺少有效的目标/内参配对 Ct，请检查目标基因、内参基因和对照样本。");
         const controlDeltaMean = controlSummary.deltaCtMean;
         summaries.forEach((entry) => {
           entry.ddCtReps = entry.deltaCtReps.map((delta) => delta - controlDeltaMean);
@@ -1841,6 +1842,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           entry.rqMean = qpaMean(entry.rqReps);
           entry.rqSd = qpaSd(entry.rqReps);
           entry.rqSem = qpaSem(entry.rqReps);
+        });
+
+        summaries.forEach((entry) => {
           const p = qpaNorm(entry.sample) === control ? { p: 1, t: 0, df: entry.pairN - 1 } : qpaTTest(entry.rqReps, controlSummary.rqReps, testMode);
           entry.pValue = p.p;
           entry.pStars = qpaPStars(p.p);
