@@ -164,7 +164,7 @@
       top: 0;
       z-index: 10;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       padding: 10px 0 12px;
       margin-bottom: 8px;
@@ -628,7 +628,7 @@
     <header class="topbar">
       <div class="brand-copy">
         <h1>实验常用计算器</h1>
-        <p class="subtitle">Fast Read 102 细胞计数、qPCR 配液、BCA/WB 上样量计算</p>
+        <p class="subtitle">Fast Read 102 细胞计数、qPCR 配液、BCA/WB 上样量、慢病毒包装计算</p>
       </div>
       <div class="hero-side">
         <div class="status-chip">纯本地计算，无联网依赖</div>
@@ -642,6 +642,7 @@
       <button class="tab-button active" type="button" data-tab="cell" aria-controls="panel-cell">细胞计数板</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
       <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
+      <button class="tab-button" type="button" data-tab="virus" aria-controls="panel-virus">慢病毒包装</button>
     </nav>
 
     <main>
@@ -880,6 +881,91 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           <div><span class="formula">自动统一蛋白量 = min(已煮样蛋白浓度 × 每泳道最终上样体积)</span></div>
           <div><span class="formula">取已煮样体积 = 统一蛋白量 / 已煮样蛋白浓度</span></div>
           <div><span class="formula">1× loading补足体积 = 每泳道最终上样体积 - 取已煮样体积</span></div>
+        </details>
+      </section>
+
+      <section id="panel-virus" class="tool-panel" data-panel="virus">
+        <div class="module-head">
+          <div>
+            <h2>慢病毒包装质粒与 PEI 计算器</h2>
+            <p class="module-note">按总质粒量、自定义三质粒比例和各质粒浓度，计算目的质粒、psPAX2、pMD2.G、PEI 与 Opti-MEM 体积。</p>
+          </div>
+          <div class="quick-note">默认比例为 目的质粒:psPAX2:pMD2.G = 5:3:2。</div>
+        </div>
+
+        <h3>一、总量与比例</h3>
+        <div class="grid">
+          <div>
+            <label for="lv-total-dna">总质粒量 µg</label>
+            <input id="lv-total-dna" type="number" min="0" step="any" inputmode="decimal" value="5" />
+            <div class="help">例如 5 表示三种质粒总共 5 µg。</div>
+          </div>
+          <div>
+            <label for="lv-transfer-ratio">目的质粒比例</label>
+            <input id="lv-transfer-ratio" type="number" min="0" step="any" inputmode="decimal" value="5" />
+          </div>
+          <div>
+            <label for="lv-pax2-ratio">psPAX2 比例</label>
+            <input id="lv-pax2-ratio" type="number" min="0" step="any" inputmode="decimal" value="3" />
+          </div>
+          <div>
+            <label for="lv-md2g-ratio">pMD2.G 比例</label>
+            <input id="lv-md2g-ratio" type="number" min="0" step="any" inputmode="decimal" value="2" />
+          </div>
+        </div>
+
+        <h3>二、质粒浓度</h3>
+        <div class="grid">
+          <div>
+            <label for="lv-transfer-conc">目的质粒浓度 ng/µL</label>
+            <input id="lv-transfer-conc" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 1000" />
+          </div>
+          <div>
+            <label for="lv-pax2-conc">psPAX2 浓度 ng/µL</label>
+            <input id="lv-pax2-conc" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 1000" />
+          </div>
+          <div>
+            <label for="lv-md2g-conc">pMD2.G 浓度 ng/µL</label>
+            <input id="lv-md2g-conc" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 1000" />
+          </div>
+        </div>
+
+        <h3>三、PEI 与 Opti-MEM 设置</h3>
+        <div class="grid">
+          <div>
+            <label for="lv-pei-per-ug">PEI 体积系数 µL/µg DNA</label>
+            <input id="lv-pei-per-ug" type="number" min="0" step="any" inputmode="decimal" value="3" />
+            <div class="help">默认按总质粒量的 3 倍体积理解，即 3 µL PEI / 1 µg DNA。</div>
+          </div>
+          <div>
+            <label for="lv-opti-ref-dna">Opti-MEM 参考 DNA 量 µg</label>
+            <input id="lv-opti-ref-dna" type="number" min="0" step="any" inputmode="decimal" value="5" />
+          </div>
+          <div>
+            <label for="lv-opti-ref-vol">Opti-MEM 参考体积 µL</label>
+            <input id="lv-opti-ref-vol" type="number" min="0" step="any" inputmode="decimal" value="400" />
+            <div class="help">这里按 5 µg 总质粒对应 400 µL Opti-MEM 线性换算。</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="lv-calc">计算慢病毒包装配液</button>
+          <button class="action secondary" type="button" id="lv-example">填入示例</button>
+        </div>
+
+        <div id="lv-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div class="section-title">三质粒质量分配</div>
+          <div><span class="formula">比例总和 = 目的质粒比例 + psPAX2比例 + pMD2.G比例</span></div>
+          <div><span class="formula">单个质粒质量 = 总质粒量 × 该质粒比例 / 比例总和</span></div>
+          <div><span class="formula">单个质粒体积 = 单个质粒质量 × 1000 / 质粒浓度</span></div>
+          <div class="section-title">PEI 与 Opti-MEM</div>
+          <div><span class="formula">PEI体积 = 总质粒量 × PEI体积系数</span></div>
+          <div><span class="formula">Opti-MEM总量 = 总质粒量 / 参考DNA量 × 参考Opti-MEM体积</span></div>
+          <div><span class="formula">Opti-MEM补足量 = Opti-MEM总量 - 总质粒体积 - PEI体积</span></div>
+          <div class="help">所有结果只是配液数学换算；具体实验条件仍按你的细胞系、培养皿规格和实验室 SOP 调整。</div>
         </details>
       </section>
     </main>
@@ -1444,6 +1530,126 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         calculateBcaAll();
       }
 
+      function calculateLentivirus() {
+        const totalDnaUg = getNumber("lv-total-dna");
+        const transferRatio = getNumber("lv-transfer-ratio");
+        const pax2Ratio = getNumber("lv-pax2-ratio");
+        const md2gRatio = getNumber("lv-md2g-ratio");
+        const transferConc = getNumber("lv-transfer-conc");
+        const pax2Conc = getNumber("lv-pax2-conc");
+        const md2gConc = getNumber("lv-md2g-conc");
+        const peiPerUg = getNumber("lv-pei-per-ug");
+        const optiRefDna = getNumber("lv-opti-ref-dna");
+        const optiRefVol = getNumber("lv-opti-ref-vol");
+        const ratioSum = transferRatio + pax2Ratio + md2gRatio;
+
+        const invalid = !isFinite(totalDnaUg) || totalDnaUg <= 0 ||
+          !isFinite(transferRatio) || transferRatio < 0 ||
+          !isFinite(pax2Ratio) || pax2Ratio < 0 ||
+          !isFinite(md2gRatio) || md2gRatio < 0 ||
+          ratioSum <= 0 ||
+          !isFinite(transferConc) || transferConc <= 0 ||
+          !isFinite(pax2Conc) || pax2Conc <= 0 ||
+          !isFinite(md2gConc) || md2gConc <= 0 ||
+          !isFinite(peiPerUg) || peiPerUg < 0 ||
+          !isFinite(optiRefDna) || optiRefDna <= 0 ||
+          !isFinite(optiRefVol) || optiRefVol <= 0;
+
+        if (invalid) {
+          setResult("lv-result", "<p class=\"result-title\">慢病毒包装参数不完整，请检查总质粒量、比例、浓度、PEI 和 Opti-MEM 设置。</p>", "danger");
+          return false;
+        }
+
+        const plasmids = [
+          { name: "目的质粒", ratio: transferRatio, conc: transferConc },
+          { name: "psPAX2", ratio: pax2Ratio, conc: pax2Conc },
+          { name: "pMD2.G", ratio: md2gRatio, conc: md2gConc }
+        ].map((plasmid) => {
+          const massUg = totalDnaUg * plasmid.ratio / ratioSum;
+          const volumeUl = massUg * 1000 / plasmid.conc;
+          return { ...plasmid, massUg, volumeUl };
+        });
+
+        const totalPlasmidVol = plasmids.reduce((sum, plasmid) => sum + plasmid.volumeUl, 0);
+        const peiVol = totalDnaUg * peiPerUg;
+        const optiTotalVol = totalDnaUg / optiRefDna * optiRefVol;
+        const optiTopUpVol = optiTotalVol - totalPlasmidVol - peiVol;
+        const halfMixVol = optiTotalVol / 2;
+        const dnaTubeOpti = halfMixVol - totalPlasmidVol;
+        const peiTubeOpti = halfMixVol - peiVol;
+
+        let hasWarn = false;
+        const notices = [];
+        if (optiTopUpVol < -1e-9) {
+          hasWarn = true;
+          notices.push(`当前质粒体积 + PEI 体积为 ${fmt(totalPlasmidVol + peiVol, 3)} µL，已经超过按比例换算的 Opti-MEM 总量 ${fmt(optiTotalVol, 3)} µL，请提高 Opti-MEM 体积或检查浓度/比例。`);
+        }
+        if (dnaTubeOpti < -1e-9 || peiTubeOpti < -1e-9) {
+          hasWarn = true;
+          notices.push("如果按 DNA 管和 PEI 管等体积预混，至少有一管的 Opti-MEM 补足量为负，建议改用总量补足或提高 Opti-MEM 总量。");
+        }
+
+        const plasmidRows = plasmids.map((plasmid) => [
+          escapeHtml(plasmid.name),
+          fmt(plasmid.ratio, 3),
+          fmt(plasmid.massUg, 4),
+          fmt(plasmid.conc, 3),
+          fmt(plasmid.volumeUl, 3)
+        ]);
+
+        const summaryRows = [
+          ["总质粒体积", `${fmt(totalPlasmidVol, 3)} µL`],
+          ["PEI 体积", `${fmt(peiVol, 3)} µL`],
+          ["Opti-MEM 总量", `${fmt(optiTotalVol, 3)} µL`],
+          ["Opti-MEM 补足量", `${fmt(optiTopUpVol, 3)} µL`],
+          ["最终混合体积", `${fmt(totalPlasmidVol + peiVol + Math.max(optiTopUpVol, 0), 3)} µL`]
+        ];
+
+        const splitRows = [
+          ["DNA 管", `三种质粒合计 ${fmt(totalPlasmidVol, 3)} µL`, `${fmt(dnaTubeOpti, 3)} µL`, `${fmt(halfMixVol, 3)} µL`],
+          ["PEI 管", `PEI ${fmt(peiVol, 3)} µL`, `${fmt(peiTubeOpti, 3)} µL`, `${fmt(halfMixVol, 3)} µL`]
+        ];
+
+        let html = `
+          <p class="result-title">慢病毒包装配液计算结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmt(totalDnaUg, 3)} µg</strong><span>总质粒量</span></div>
+            <div class="metric"><strong>${fmt(transferRatio, 3)}:${fmt(pax2Ratio, 3)}:${fmt(md2gRatio, 3)}</strong><span>目的质粒:psPAX2:pMD2.G</span></div>
+            <div class="metric"><strong>${fmt(totalPlasmidVol, 3)} µL</strong><span>三质粒总体积</span></div>
+            <div class="metric"><strong>${fmt(peiVol, 3)} µL</strong><span>PEI 体积</span></div>
+            <div class="metric"><strong>${fmt(optiTotalVol, 3)} µL</strong><span>Opti-MEM 总量</span></div>
+          </div>
+          ${table(["质粒", "比例", "质量 µg", "浓度 ng/µL", "体积 µL"], plasmidRows)}
+          <div class="section-title">总体积汇总</div>
+          ${table(["项目", "结果"], summaryRows)}
+          <div class="section-title">两管等体积预混参考</div>
+          ${table(["管", "已有组分", "加入 Opti-MEM", "该管目标体积"], splitRows)}
+        `;
+
+        if (notices.length) {
+          html += notices.map((text) => `<div class="notice warn"><strong>提醒：</strong>${escapeHtml(text)}</div>`).join("");
+        } else {
+          html += `<div class="notice ok"><strong>建议记录：</strong>总 DNA ${fmt(totalDnaUg, 3)} µg；三质粒比例 ${fmt(transferRatio, 3)}:${fmt(pax2Ratio, 3)}:${fmt(md2gRatio, 3)}；PEI ${fmt(peiVol, 3)} µL；Opti-MEM 总量 ${fmt(optiTotalVol, 3)} µL。</div>`;
+        }
+
+        setResult("lv-result", html, hasWarn ? "warn" : "ok");
+        return true;
+      }
+
+      function fillLentivirusExample() {
+        $("lv-total-dna").value = "5";
+        $("lv-transfer-ratio").value = "5";
+        $("lv-pax2-ratio").value = "3";
+        $("lv-md2g-ratio").value = "2";
+        $("lv-transfer-conc").value = "1000";
+        $("lv-pax2-conc").value = "1000";
+        $("lv-md2g-conc").value = "1000";
+        $("lv-pei-per-ug").value = "3";
+        $("lv-opti-ref-dna").value = "5";
+        $("lv-opti-ref-vol").value = "400";
+        calculateLentivirus();
+      }
+
       function activateTab(name, shouldUpdateHash) {
         document.querySelectorAll(".tab-button").forEach((button) => {
           const active = button.dataset.tab === name;
@@ -1469,12 +1675,14 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("bca-calc").addEventListener("click", calculateBcaAll);
         $("bca-example").addEventListener("click", fillBcaExample);
+        $("lv-calc").addEventListener("click", calculateLentivirus);
+        $("lv-example").addEventListener("click", fillLentivirusExample);
       }
 
       bindEvents();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "qpcr", "bca"].includes(initialTab)) {
+      if (["cell", "qpcr", "bca", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
