@@ -876,6 +876,7 @@ Gene_2</textarea>
           <div>
             <label for="qpa-ref-gene">内参基因</label>
             <input id="qpa-ref-gene" type="text" value="ACTB" />
+            <div class="help">导入或粘贴后，会自动识别基因列表并优先选择常见内参。</div>
           </div>
           <div>
             <label for="qpa-control-sample">对照样本</label>
@@ -1594,12 +1595,53 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         }).filter((row) => row.sample && row.gene && isFinite(row.ct) && !["true", "yes", "1"].includes(row.ignored));
       }
 
+      function qpaUniqueNames(rows, key) {
+        const seen = new Set();
+        return rows.map((row) => String(row[key] || "").trim()).filter((name) => {
+          const norm = qpaNorm(name);
+          if (!norm || norm === "20" || seen.has(norm)) return false;
+          seen.add(norm);
+          return true;
+        });
+      }
+
+      function qpaPickReferenceGene(genes) {
+        const priority = ["actin", "actb", "gapdh", "b2m", "hprt1", "rplp0", "18s", "rn18s", "18srna", "tbp"];
+        const byNorm = new Map(genes.map((gene) => [qpaNorm(gene), gene]));
+        const exact = priority.map((name) => byNorm.get(name)).find(Boolean);
+        if (exact) return exact;
+        return genes.find((gene) => ["actin", "gapdh", "tubulin"].some((marker) => qpaNorm(gene).includes(marker))) || genes[0] || "";
+      }
+
+      function qpaAutoFillGenes(genes) {
+        if (!genes.length) return;
+        const byNorm = new Map(genes.map((gene) => [qpaNorm(gene), gene]));
+        const targetInput = $("qpa-target-gene");
+        const refInput = $("qpa-ref-gene");
+        const currentTargets = targetInput.value.split(/[,，;；\s]+/).map((x) => x.trim()).filter(Boolean);
+        const targetsKnown = currentTargets.length > 0 && currentTargets.every((gene) => byNorm.has(qpaNorm(gene)));
+        const refKnown = byNorm.has(qpaNorm(refInput.value));
+
+        if (!refKnown) {
+          refInput.value = qpaPickReferenceGene(genes);
+        }
+
+        const refNorm = qpaNorm(refInput.value);
+        const targetCandidates = genes.filter((gene) => qpaNorm(gene) !== refNorm);
+        if (!targetsKnown) {
+          targetInput.value = targetCandidates.join(",") || genes.join(",");
+        }
+      }
+
       function qpaRefreshSampleOptions() {
         const select = $("qpa-control-sample");
         const previous = select.value;
         try {
           const rows = qpaParseTextTable($("qpa-data").value);
-          const samples = Array.from(new Set(rows.map((row) => row.sample).filter((sample) => sample && qpaNorm(sample) !== "20")));
+          const samples = qpaUniqueNames(rows, "sample");
+          const genes = qpaUniqueNames(rows, "gene");
+          qpaRefreshSampleOptions.last = { samples, genes };
+          qpaAutoFillGenes(genes);
           if (!samples.length) return [];
           select.innerHTML = samples.map((sample) => `<option value="${escapeHtml(sample)}">${escapeHtml(sample)}</option>`).join("");
           if (samples.includes(previous)) {
@@ -1611,6 +1653,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           }
           return samples;
         } catch (error) {
+          qpaRefreshSampleOptions.last = { samples: [], genes: [] };
           return [];
         }
       }
@@ -1972,9 +2015,13 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           const rows = qpaParseTextTable($("qpa-data").value);
           const samples = qpaRefreshSampleOptions();
           const targetGenes = $("qpa-target-gene").value.split(/[,，;；\s]+/).map((x) => x.trim()).filter(Boolean);
+          const genes = qpaUniqueNames(rows, "gene");
+          const byGene = new Map(genes.map((gene) => [qpaNorm(gene), gene]));
           if (!rows.length) throw new Error("没有可用 Ct 数据。");
           if (!targetGenes.length) throw new Error("请填写至少一个目标基因。");
           if (!samples.length) throw new Error("没有从样本名列识别到可用样本。");
+          const missingGenes = [...targetGenes, $("qpa-ref-gene").value].filter((gene) => !byGene.has(qpaNorm(gene)));
+          if (missingGenes.length) throw new Error(`没有在“基因名称”列找到：${missingGenes.join(", ")}。已识别基因：${genes.join(", ")}`);
           const comparisons = qpaParseComparisons(samples);
           const analyses = targetGenes.flatMap((gene) => comparisons.map((comparison) => qpaAnalyzeRows(rows, gene, comparison)));
           qpaRenderAnalyses(analyses, rows);
@@ -2127,13 +2174,17 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
             if (headerRow < 0) throw new Error("没有在 xlsx 中找到孔级结果表头。");
             $("qpa-data").value = qpaRowsToTsv(parsed.rows.slice(headerRow));
             const samples = qpaRefreshSampleOptions();
+            const genes = qpaRefreshSampleOptions.last?.genes || [];
             $("qpa-file-status").textContent = `已读取 ${file.name} 的“${parsed.sheetName}”表。`;
             if (samples.length) $("qpa-file-status").textContent += ` 已识别 ${samples.length} 个样本。`;
+            if (genes.length) $("qpa-file-status").textContent += ` 已识别 ${genes.length} 个基因。`;
           } else {
             $("qpa-data").value = await file.text();
             const samples = qpaRefreshSampleOptions();
+            const genes = qpaRefreshSampleOptions.last?.genes || [];
             $("qpa-file-status").textContent = `已读取 ${file.name}。`;
             if (samples.length) $("qpa-file-status").textContent += ` 已识别 ${samples.length} 个样本。`;
+            if (genes.length) $("qpa-file-status").textContent += ` 已识别 ${genes.length} 个基因。`;
           }
         } catch (error) {
           $("qpa-file-status").textContent = error.message;
