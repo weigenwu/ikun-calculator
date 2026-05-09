@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>实验常用计算器</title>
+  <title>外实东区计算器</title>
   <style>
     :root {
       --page: #edf4f2;
@@ -121,6 +121,18 @@
       white-space: nowrap;
     }
 
+    .signature-chip {
+      width: fit-content;
+      border: 1px solid rgba(217, 144, 34, 0.38);
+      background: rgba(255, 240, 199, 0.78);
+      color: #815213;
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
     .mascot-card {
       width: 132px;
       height: 104px;
@@ -164,7 +176,7 @@
       top: 0;
       z-index: 10;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 10px;
       padding: 10px 0 12px;
       margin-bottom: 8px;
@@ -292,6 +304,7 @@
     }
 
     input,
+    select,
     textarea {
       width: 100%;
       border: 1px solid #afbfbb;
@@ -303,7 +316,8 @@
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
-    input {
+    input,
+    select {
       min-height: var(--field-h);
       padding: 9px 11px;
     }
@@ -317,6 +331,7 @@
     }
 
     input:focus,
+    select:focus,
     textarea:focus {
       border-color: var(--accent);
       outline: 3px solid var(--accent-soft);
@@ -493,6 +508,23 @@
       color: #163136;
     }
 
+    .chart-wrap {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+      overflow-x: auto;
+      box-shadow: 0 8px 18px rgba(21, 48, 53, 0.05);
+    }
+
+    .chart-wrap canvas {
+      display: block;
+      width: min(100%, 920px);
+      min-width: 620px;
+      height: 430px;
+    }
+
     details.formula-box {
       margin-top: 18px;
       border: 1px solid var(--border);
@@ -627,11 +659,14 @@
   <div class="app">
     <header class="topbar">
       <div class="brand-copy">
-        <h1>实验常用计算器</h1>
-        <p class="subtitle">Fast Read 102 细胞计数、qPCR 配液、BCA/WB 上样量、慢病毒包装计算</p>
+        <h1>外实东区计算器</h1>
+        <p class="subtitle">Fast Read 102 细胞计数、qPCR 配液、qPCR 数据分析、BCA/WB 上样量、慢病毒包装计算</p>
       </div>
       <div class="hero-side">
-        <div class="status-chip">纯本地计算，无联网依赖</div>
+        <div>
+          <div class="status-chip">纯本地计算，无联网依赖</div>
+          <div class="signature-chip">金吾卫w²g</div>
+        </div>
         <div class="mascot-card" aria-label="IKUN 多帧待机动画">
           <span class="mascot-sprite" role="img" aria-label="白发黑衣像素风 IKUN 宠物正在眨眼"></span>
         </div>
@@ -641,6 +676,7 @@
     <nav class="tabs" aria-label="计算器模块">
       <button class="tab-button active" type="button" data-tab="cell" aria-controls="panel-cell">细胞计数板</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
+      <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
       <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
       <button class="tab-button" type="button" data-tab="virus" aria-controls="panel-virus">慢病毒包装</button>
     </nav>
@@ -803,6 +839,90 @@ Gene_2</textarea>
           <div><span class="formula">每组实际配液孔数 = 复孔数 + 额外多配孔数</span></div>
           <div><span class="formula">实际上板孔数 = 样本数 × 基因数 × 复孔数</span></div>
           <div><span class="formula">实际配液总孔数 = 样本数 × 基因数 × 每组实际配液孔数</span></div>
+        </details>
+      </section>
+
+      <section id="panel-qpcrdata" class="tool-panel" data-panel="qpcrdata">
+        <div class="module-head">
+          <div>
+            <h2>qPCR 下机数据分析计算器</h2>
+            <p class="module-note">导入 QuantStudio 下机文件或粘贴结果表，自动计算 Ct 均值、ΔCt、ΔΔCt、2^-ΔΔCt、P 值，并生成柱状图与 Prism CSV。</p>
+          </div>
+          <div class="quick-note">默认逻辑：目标基因 GeneA，内参 ACTB，对照样本 Control。</div>
+        </div>
+
+        <h3>一、导入下机数据</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="qpa-file">上传 QuantStudio 文件，可选</label>
+            <input id="qpa-file" type="file" accept=".xlsx,.csv,.tsv,.txt" />
+            <div class="help">优先读取 QuantStudio 导出的 .xlsx 中的“结果分析”表。也可以直接粘贴 Excel 表格内容。</div>
+            <div id="qpa-file-status" class="help">尚未读取文件。</div>
+          </div>
+          <div class="panel">
+            <label for="qpa-data">粘贴孔级结果表</label>
+            <textarea id="qpa-data" placeholder="从 QuantStudio 的“结果分析”表复制，包括表头：样本名、基因名称、Cт 或 Ct。"></textarea>
+            <div class="help">至少需要列：样本名、基因名称、Ct/Cт。可包含反应孔位置、Cт SD、扩增状态、Tm1 等列用于 QC。</div>
+          </div>
+        </div>
+
+        <h3>二、分析设置</h3>
+        <div class="grid">
+          <div>
+            <label for="qpa-target-gene">目标基因</label>
+            <input id="qpa-target-gene" type="text" value="GeneA" />
+            <div class="help">多个目标基因可用逗号分隔，例如 GeneA,GeneB。</div>
+          </div>
+          <div>
+            <label for="qpa-ref-gene">内参基因</label>
+            <input id="qpa-ref-gene" type="text" value="ACTB" />
+          </div>
+          <div>
+            <label for="qpa-control-sample">对照样本</label>
+            <input id="qpa-control-sample" type="text" value="Control" />
+          </div>
+          <div>
+            <label for="qpa-expected-reps">期望技术复孔数</label>
+            <input id="qpa-expected-reps" type="number" min="1" step="1" inputmode="numeric" value="4" />
+          </div>
+          <div>
+            <label for="qpa-ct-sd-threshold">Ct SD 警告阈值</label>
+            <input id="qpa-ct-sd-threshold" type="number" min="0" step="any" inputmode="decimal" value="0.3" />
+          </div>
+          <div>
+            <label for="qpa-test-mode">统计检验</label>
+            <select id="qpa-test-mode">
+              <option value="welch">Welch t-test（默认）</option>
+              <option value="student">Student t-test</option>
+            </select>
+            <div class="help">基于每个技术孔计算出的 2^-ΔΔCt 做组间检验。</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="qpa-analyze">分析 qPCR 数据</button>
+          <button class="action secondary" type="button" id="qpa-example">填入当前示例</button>
+          <button class="action secondary" type="button" id="qpa-download" disabled>导出 Prism CSV</button>
+        </div>
+
+        <div id="qpa-result" class="result" aria-live="polite"></div>
+        <div id="qpa-chart-box" class="result" aria-live="polite">
+          <p class="result-title">相对表达量柱状图</p>
+          <div class="chart-wrap">
+            <canvas id="qpa-chart" width="920" height="430"></canvas>
+          </div>
+        </div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div class="section-title">核心公式</div>
+          <div><span class="formula">Ct均值 = 同一样本同一基因所有有效复孔 Ct 的平均值</span></div>
+          <div><span class="formula">ΔCt = Ct(目标基因) - Ct(内参基因)</span></div>
+          <div><span class="formula">ΔΔCt = ΔCt(样本) - 平均ΔCt(对照样本)</span></div>
+          <div><span class="formula">相对表达量 = 2^(-ΔΔCt)</span></div>
+          <div class="section-title">统计与导出</div>
+          <div>网页会对每个样本的技术孔相对表达量计算 mean、SD、SEM，并把每个重复孔作为 Prism CSV 的子列导出。</div>
+          <div class="help">技术重复 t-test 只能反映当前孔级数据差异；正式论文统计通常建议使用独立生物学重复。</div>
         </details>
       </section>
 
@@ -970,7 +1090,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       </section>
     </main>
 
-    <div class="footer">单文件 index.html，可直接本地打开，也可上传到 GitHub Pages、Netlify 或 Vercel。</div>
+    <div class="footer">金吾卫w²g 出品 · 纯本地静态网页，可直接本地打开，也可部署到 GitHub Pages。</div>
   </div>
 
   <script>
@@ -978,6 +1098,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       "use strict";
 
       const $ = (id) => document.getElementById(id);
+      let qpaLastPrismCsv = "";
 
       function escapeHtml(value) {
         return String(value)
@@ -1357,6 +1478,575 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         calculateQpcrAll();
       }
 
+      function qpaNorm(value) {
+        return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+      }
+
+      function qpaMean(values) {
+        return mean(values.filter((value) => isFinite(value)));
+      }
+
+      function qpaSd(values) {
+        return sd(values.filter((value) => isFinite(value)));
+      }
+
+      function qpaSem(values) {
+        const clean = values.filter((value) => isFinite(value));
+        return clean.length ? qpaSd(clean) / Math.sqrt(clean.length) : NaN;
+      }
+
+      function qpaParseCsvLine(line, delimiter) {
+        const out = [];
+        let value = "";
+        let quoted = false;
+        for (let i = 0; i < line.length; i += 1) {
+          const ch = line[i];
+          if (ch === "\"") {
+            if (quoted && line[i + 1] === "\"") {
+              value += "\"";
+              i += 1;
+            } else {
+              quoted = !quoted;
+            }
+          } else if (ch === delimiter && !quoted) {
+            out.push(value);
+            value = "";
+          } else {
+            value += ch;
+          }
+        }
+        out.push(value);
+        return out.map((cell) => cell.trim());
+      }
+
+      function qpaRowsToTsv(rows) {
+        return rows.map((row) => row.map((cell) => String(cell ?? "").replace(/\t/g, " ").replace(/\r?\n/g, " ")).join("\t")).join("\n");
+      }
+
+      function qpaHeaderIndexes(headers) {
+        const norm = headers.map(qpaNorm);
+        const find = (tester) => norm.findIndex(tester);
+        const sample = find((h) => h === "样本名" || h.includes("samplename") || h === "sample" || h === "样本");
+        const gene = find((h) => h === "基因名称" || h.includes("targetname") || h === "gene" || h === "target" || h === "基因");
+        const ct = find((h) => ["ct", "cт", "cq", "ct值", "cт值"].includes(h));
+        const well = find((h) => h === "反应孔位置" || h === "well" || h === "wellposition");
+        const amp = find((h) => h === "扩增状态" || h === "amplificationstatus" || h === "ampstatus");
+        const tm = find((h) => h === "tm1" || h === "tm");
+        const ignored = find((h) => h === "忽略" || h === "omit" || h === "ignore");
+        return { sample, gene, ct, well, amp, tm, ignored };
+      }
+
+      function qpaFindHeaderRow(rows) {
+        for (let i = 0; i < rows.length; i += 1) {
+          const idx = qpaHeaderIndexes(rows[i]);
+          if (idx.sample >= 0 && idx.gene >= 0 && idx.ct >= 0) return i;
+        }
+        return -1;
+      }
+
+      function qpaParseTextTable(text) {
+        const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+        if (!lines.length) return [];
+        const firstUseful = lines.find((line) => line.trim()) || "";
+        const delimiter = firstUseful.includes("\t") ? "\t" : (firstUseful.includes(",") ? "," : ";");
+        const rows = lines.map((line) => qpaParseCsvLine(line, delimiter));
+        const headerRow = qpaFindHeaderRow(rows);
+        if (headerRow < 0) {
+          throw new Error("没有找到包含“样本名、基因名称、Ct/Cт”的表头。");
+        }
+        const headers = rows[headerRow];
+        const idx = qpaHeaderIndexes(headers);
+        return rows.slice(headerRow + 1).map((row, rowIndex) => {
+          const ct = parseFloat(row[idx.ct]);
+          const ignored = idx.ignored >= 0 ? qpaNorm(row[idx.ignored]) : "";
+          return {
+            sample: row[idx.sample] || "",
+            gene: row[idx.gene] || "",
+            ct,
+            well: idx.well >= 0 ? row[idx.well] || "" : "",
+            amp: idx.amp >= 0 ? row[idx.amp] || "" : "",
+            tm: idx.tm >= 0 ? parseFloat(row[idx.tm]) : NaN,
+            ignored,
+            rowIndex: rowIndex + headerRow + 2
+          };
+        }).filter((row) => row.sample && row.gene && isFinite(row.ct) && !["true", "yes", "1"].includes(row.ignored));
+      }
+
+      function qpaLogGamma(z) {
+        const coeff = [676.5203681218851, -1259.1392167224028, 771.3234287776531, -176.6150291621406, 12.507343278686905, -0.13857109526572012, 9.984369578019572e-6, 1.5056327351493116e-7];
+        if (z < 0.5) return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - qpaLogGamma(1 - z);
+        z -= 1;
+        let x = 0.9999999999998099;
+        for (let i = 0; i < coeff.length; i += 1) x += coeff[i] / (z + i + 1);
+        const t = z + coeff.length - 0.5;
+        return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+      }
+
+      function qpaBetaContinuedFraction(a, b, x) {
+        const maxIter = 120;
+        const eps = 3e-10;
+        const fpmin = 1e-30;
+        let qab = a + b;
+        let qap = a + 1;
+        let qam = a - 1;
+        let c = 1;
+        let d = 1 - qab * x / qap;
+        if (Math.abs(d) < fpmin) d = fpmin;
+        d = 1 / d;
+        let h = d;
+        for (let m = 1; m <= maxIter; m += 1) {
+          const m2 = 2 * m;
+          let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+          d = 1 + aa * d;
+          if (Math.abs(d) < fpmin) d = fpmin;
+          c = 1 + aa / c;
+          if (Math.abs(c) < fpmin) c = fpmin;
+          d = 1 / d;
+          h *= d * c;
+          aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+          d = 1 + aa * d;
+          if (Math.abs(d) < fpmin) d = fpmin;
+          c = 1 + aa / c;
+          if (Math.abs(c) < fpmin) c = fpmin;
+          d = 1 / d;
+          const del = d * c;
+          h *= del;
+          if (Math.abs(del - 1) < eps) break;
+        }
+        return h;
+      }
+
+      function qpaRegularizedBeta(x, a, b) {
+        if (x <= 0) return 0;
+        if (x >= 1) return 1;
+        const bt = Math.exp(qpaLogGamma(a + b) - qpaLogGamma(a) - qpaLogGamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+        if (x < (a + 1) / (a + b + 2)) return bt * qpaBetaContinuedFraction(a, b, x) / a;
+        return 1 - bt * qpaBetaContinuedFraction(b, a, 1 - x) / b;
+      }
+
+      function qpaTCdf(t, df) {
+        if (!isFinite(t) || !isFinite(df) || df <= 0) return NaN;
+        const x = df / (df + t * t);
+        const ib = qpaRegularizedBeta(x, df / 2, 0.5);
+        return t >= 0 ? 1 - ib / 2 : ib / 2;
+      }
+
+      function qpaTTest(a, b, mode) {
+        const x = a.filter(isFinite);
+        const y = b.filter(isFinite);
+        if (x.length < 2 || y.length < 2) return { p: NaN, t: NaN, df: NaN };
+        const mx = qpaMean(x);
+        const my = qpaMean(y);
+        const vx = Math.pow(qpaSd(x), 2);
+        const vy = Math.pow(qpaSd(y), 2);
+        let se;
+        let df;
+        if (mode === "student") {
+          df = x.length + y.length - 2;
+          const pooled = ((x.length - 1) * vx + (y.length - 1) * vy) / df;
+          se = Math.sqrt(pooled * (1 / x.length + 1 / y.length));
+        } else {
+          const ax = vx / x.length;
+          const by = vy / y.length;
+          se = Math.sqrt(ax + by);
+          df = Math.pow(ax + by, 2) / (Math.pow(ax, 2) / (x.length - 1) + Math.pow(by, 2) / (y.length - 1));
+        }
+        if (!isFinite(se) || se === 0) return { p: mx === my ? 1 : NaN, t: NaN, df };
+        const t = (mx - my) / se;
+        const p = Math.min(1, Math.max(0, 2 * (1 - qpaTCdf(Math.abs(t), df))));
+        return { p, t, df };
+      }
+
+      function qpaPStars(p) {
+        if (!isFinite(p)) return "n/a";
+        if (p < 0.0001) return "****";
+        if (p < 0.001) return "***";
+        if (p < 0.01) return "**";
+        if (p < 0.05) return "*";
+        return "ns";
+      }
+
+      function qpaAnalyzeRows(rows, targetGene) {
+        const target = qpaNorm(targetGene);
+        const ref = qpaNorm($("qpa-ref-gene").value);
+        const control = qpaNorm($("qpa-control-sample").value);
+        const expectedReps = parseInt($("qpa-expected-reps").value, 10);
+        const sdThreshold = getNumber("qpa-ct-sd-threshold");
+        const testMode = $("qpa-test-mode").value;
+        const geneRows = rows.filter((row) => [target, ref].includes(qpaNorm(row.gene)));
+        const samples = Array.from(new Set(geneRows.map((row) => row.sample))).filter((sample) => qpaNorm(sample) !== "20");
+        const bySample = new Map();
+        samples.forEach((sample) => bySample.set(sample, { sample, targetRows: [], refRows: [] }));
+        geneRows.forEach((row) => {
+          const entry = bySample.get(row.sample);
+          if (!entry) return;
+          if (qpaNorm(row.gene) === target) entry.targetRows.push(row);
+          if (qpaNorm(row.gene) === ref) entry.refRows.push(row);
+        });
+
+        const controlEntry = Array.from(bySample.values()).find((entry) => qpaNorm(entry.sample) === control);
+        if (!controlEntry) throw new Error("没有找到对照样本，请检查“对照样本”名称。");
+
+        const summaries = Array.from(bySample.values()).map((entry) => {
+          const targetCts = entry.targetRows.map((row) => row.ct);
+          const refCts = entry.refRows.map((row) => row.ct);
+          const pairN = Math.min(targetCts.length, refCts.length);
+          const deltaCtReps = [];
+          for (let i = 0; i < pairN; i += 1) deltaCtReps.push(targetCts[i] - refCts[i]);
+          return {
+            sample: entry.sample,
+            targetCts,
+            refCts,
+            pairN,
+            targetCtMean: qpaMean(targetCts),
+            targetCtSd: qpaSd(targetCts),
+            refCtMean: qpaMean(refCts),
+            refCtSd: qpaSd(refCts),
+            deltaCtReps,
+            deltaCtMean: qpaMean(deltaCtReps),
+            warnings: []
+          };
+        });
+
+        const controlSummary = summaries.find((entry) => qpaNorm(entry.sample) === control);
+        const controlDeltaMean = controlSummary.deltaCtMean;
+        summaries.forEach((entry) => {
+          entry.ddCtReps = entry.deltaCtReps.map((delta) => delta - controlDeltaMean);
+          entry.rqReps = entry.ddCtReps.map((ddct) => Math.pow(2, -ddct));
+          entry.ddCtMean = qpaMean(entry.ddCtReps);
+          entry.rqMean = qpaMean(entry.rqReps);
+          entry.rqSd = qpaSd(entry.rqReps);
+          entry.rqSem = qpaSem(entry.rqReps);
+          const p = qpaNorm(entry.sample) === control ? { p: 1, t: 0, df: entry.pairN - 1 } : qpaTTest(entry.rqReps, controlSummary.rqReps, testMode);
+          entry.pValue = p.p;
+          entry.pStars = qpaPStars(p.p);
+          if (Number.isInteger(expectedReps) && expectedReps > 0 && entry.pairN !== expectedReps) entry.warnings.push(`有效配对复孔 ${entry.pairN}/${expectedReps}`);
+          if (isFinite(sdThreshold) && sdThreshold > 0 && entry.targetCtSd > sdThreshold) entry.warnings.push(`目标基因 Ct SD ${fmt(entry.targetCtSd, 3)} 偏高`);
+          if (isFinite(sdThreshold) && sdThreshold > 0 && entry.refCtSd > sdThreshold) entry.warnings.push(`内参 Ct SD ${fmt(entry.refCtSd, 3)} 偏高`);
+          if (!entry.targetCts.length) entry.warnings.push("缺少目标基因 Ct");
+          if (!entry.refCts.length) entry.warnings.push("缺少内参基因 Ct");
+        });
+
+        return { targetGene, summaries: summaries.filter((entry) => entry.pairN > 0), controlSummary };
+      }
+
+      function qpaBuildPrismCsv(analyses) {
+        const blocks = [];
+        analyses.forEach((analysis) => {
+          const headers = analysis.summaries.map((entry) => entry.sample);
+          const maxN = Math.max(...analysis.summaries.map((entry) => entry.rqReps.length));
+          const lines = [];
+          lines.push([`Target: ${analysis.targetGene}`]);
+          lines.push(headers);
+          for (let i = 0; i < maxN; i += 1) {
+            lines.push(analysis.summaries.map((entry) => isFinite(entry.rqReps[i]) ? entry.rqReps[i] : ""));
+          }
+          blocks.push(lines.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, "\"\"")}"`).join(",")).join("\n"));
+        });
+        return blocks.join("\n\n");
+      }
+
+      function qpaDrawChart(analysis) {
+        const box = $("qpa-chart-box");
+        const canvas = $("qpa-chart");
+        const ctx = canvas.getContext("2d");
+        const data = analysis.summaries;
+        box.style.display = "block";
+        box.className = "result ok";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const pad = { l: 72, r: 28, t: 40, b: 86 };
+        const w = canvas.width - pad.l - pad.r;
+        const h = canvas.height - pad.t - pad.b;
+        const maxY = Math.max(1.2, ...data.map((d) => d.rqMean + (isFinite(d.rqSem) ? d.rqSem : 0))) * 1.22;
+        ctx.strokeStyle = "#cfd8d6";
+        ctx.lineWidth = 1;
+        ctx.fillStyle = "#607177";
+        ctx.font = "14px Arial";
+        for (let i = 0; i <= 5; i += 1) {
+          const yVal = maxY * i / 5;
+          const y = pad.t + h - yVal / maxY * h;
+          ctx.beginPath();
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(pad.l + w, y);
+          ctx.stroke();
+          ctx.fillText(fmt(yVal, 2), 18, y + 4);
+        }
+        ctx.strokeStyle = "#172326";
+        ctx.beginPath();
+        ctx.moveTo(pad.l, pad.t);
+        ctx.lineTo(pad.l, pad.t + h);
+        ctx.lineTo(pad.l + w, pad.t + h);
+        ctx.stroke();
+        const gap = w / Math.max(data.length, 1);
+        const barW = Math.min(72, gap * 0.48);
+        data.forEach((entry, i) => {
+          const x = pad.l + gap * i + gap / 2;
+          const barH = entry.rqMean / maxY * h;
+          const y = pad.t + h - barH;
+          ctx.fillStyle = i === 0 ? "#08766d" : "#d99022";
+          ctx.fillRect(x - barW / 2, y, barW, barH);
+          if (isFinite(entry.rqSem)) {
+            const err = entry.rqSem / maxY * h;
+            ctx.strokeStyle = "#172326";
+            ctx.beginPath();
+            ctx.moveTo(x, y - err);
+            ctx.lineTo(x, y + err);
+            ctx.moveTo(x - 12, y - err);
+            ctx.lineTo(x + 12, y - err);
+            ctx.moveTo(x - 12, y + err);
+            ctx.lineTo(x + 12, y + err);
+            ctx.stroke();
+          }
+          ctx.fillStyle = "#172326";
+          entry.rqReps.forEach((value, j) => {
+            const px = x - barW * 0.28 + (j % 5) * (barW * 0.14);
+            const py = pad.t + h - value / maxY * h;
+            ctx.beginPath();
+            ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.save();
+          ctx.translate(x, pad.t + h + 24);
+          ctx.rotate(-Math.PI / 7);
+          ctx.textAlign = "right";
+          ctx.font = "14px Arial";
+          ctx.fillText(entry.sample, 0, 0);
+          ctx.restore();
+          ctx.textAlign = "center";
+          ctx.font = "13px Arial";
+          ctx.fillText(entry.pStars, x, Math.max(18, y - 20));
+        });
+        ctx.textAlign = "center";
+        ctx.font = "700 18px Arial";
+        ctx.fillStyle = "#172326";
+        ctx.fillText(`${analysis.targetGene} 相对表达量`, canvas.width / 2, 24);
+        ctx.save();
+        ctx.translate(20, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = "14px Arial";
+        ctx.fillText("2^-ΔΔCt", 0, 0);
+        ctx.restore();
+      }
+
+      function qpaRenderAnalyses(analyses, rows) {
+        const result = $("qpa-result");
+        const targetBlocks = analyses.map((analysis) => {
+          const summaryRows = analysis.summaries.map((entry) => [
+            escapeHtml(entry.sample),
+            fmt(entry.targetCtMean, 4),
+            fmt(entry.targetCtSd, 4),
+            fmt(entry.refCtMean, 4),
+            fmt(entry.refCtSd, 4),
+            fmt(entry.deltaCtMean, 4),
+            fmt(entry.ddCtMean, 4),
+            fmt(entry.rqMean, 4),
+            fmt(entry.rqSd, 4),
+            fmt(entry.rqSem, 4),
+            fmt(entry.pValue, 4),
+            escapeHtml(entry.pStars),
+            escapeHtml(entry.warnings.join("；") || "OK")
+          ]);
+          return `
+            <div class="section-title">${escapeHtml(analysis.targetGene)}</div>
+            ${table(["样本", "目标Ct均值", "目标Ct SD", "内参Ct均值", "内参Ct SD", "ΔCt均值", "ΔΔCt均值", "2^-ΔΔCt均值", "SD", "SEM", "P值", "显著性", "QC"], summaryRows)}
+          `;
+        }).join("");
+
+        const totalWarnings = analyses.flatMap((analysis) => analysis.summaries.flatMap((entry) => entry.warnings));
+        qpaLastPrismCsv = qpaBuildPrismCsv(analyses);
+        $("qpa-download").disabled = !qpaLastPrismCsv;
+        result.style.display = "block";
+        result.className = totalWarnings.length ? "result warn" : "result ok";
+        result.innerHTML = `
+          <p class="result-title">qPCR 数据分析结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmtInt(rows.length)}</strong><span>有效孔级 Ct 记录</span></div>
+            <div class="metric"><strong>${fmtInt(new Set(rows.map((row) => row.sample)).size)}</strong><span>样本数</span></div>
+            <div class="metric"><strong>${fmtInt(analyses.length)}</strong><span>目标基因数</span></div>
+          </div>
+          ${targetBlocks}
+          <div class="notice ${totalWarnings.length ? "warn" : "ok"}"><strong>QC：</strong>${totalWarnings.length ? escapeHtml(totalWarnings.slice(0, 8).join("；")) : "未发现明显复孔数量或 Ct SD 警告。"}</div>
+        `;
+        qpaDrawChart(analyses[0]);
+      }
+
+      function analyzeQpcrData() {
+        try {
+          const rows = qpaParseTextTable($("qpa-data").value);
+          const targetGenes = $("qpa-target-gene").value.split(/[,，;；\s]+/).map((x) => x.trim()).filter(Boolean);
+          if (!rows.length) throw new Error("没有可用 Ct 数据。");
+          if (!targetGenes.length) throw new Error("请填写至少一个目标基因。");
+          const analyses = targetGenes.map((gene) => qpaAnalyzeRows(rows, gene));
+          qpaRenderAnalyses(analyses, rows);
+        } catch (error) {
+          $("qpa-download").disabled = true;
+          setResult("qpa-result", `<p class="result-title">qPCR 数据分析失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
+          $("qpa-chart-box").style.display = "none";
+        }
+      }
+
+      function fillQpcrAnalysisExample() {
+        $("qpa-target-gene").value = "GeneA";
+        $("qpa-ref-gene").value = "ACTB";
+        $("qpa-control-sample").value = "Control";
+        $("qpa-expected-reps").value = "3";
+        $("qpa-ct-sd-threshold").value = "0.3";
+        $("qpa-data").value = qpaRowsToTsv([
+          ["样本名", "基因名称", "Cт", "扩增状态", "Tm1"],
+          ["Control", "GeneA", 22.10, "Amp", 84.5],
+          ["Control", "GeneA", 22.22, "Amp", 84.6],
+          ["Control", "GeneA", 22.05, "Amp", 84.5],
+          ["Control", "ACTB", 18.10, "Amp", 87.2],
+          ["Control", "ACTB", 18.18, "Amp", 87.3],
+          ["Control", "ACTB", 18.04, "Amp", 87.2],
+          ["Treat_1", "GeneA", 20.40, "Amp", 84.5],
+          ["Treat_1", "GeneA", 20.52, "Amp", 84.6],
+          ["Treat_1", "GeneA", 20.47, "Amp", 84.6],
+          ["Treat_1", "ACTB", 18.00, "Amp", 87.3],
+          ["Treat_1", "ACTB", 18.09, "Amp", 87.2],
+          ["Treat_1", "ACTB", 18.02, "Amp", 87.3],
+          ["Treat_2", "GeneA", 23.10, "Amp", 84.5],
+          ["Treat_2", "GeneA", 23.25, "Amp", 84.6],
+          ["Treat_2", "GeneA", 23.02, "Amp", 84.5],
+          ["Treat_2", "ACTB", 18.30, "Amp", 87.2],
+          ["Treat_2", "ACTB", 18.24, "Amp", 87.3],
+          ["Treat_2", "ACTB", 18.36, "Amp", 87.2]
+        ]);
+        $("qpa-file-status").textContent = "已填入通用示例数据。";
+        analyzeQpcrData();
+      }
+
+      async function qpaInflateZipData(bytes, method) {
+        if (method === 0) return bytes;
+        if (method !== 8 || typeof DecompressionStream === "undefined") {
+          throw new Error("当前浏览器无法直接解析该 xlsx，请改为复制粘贴“结果分析”表。");
+        }
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+
+      async function qpaReadZip(buffer) {
+        const bytes = new Uint8Array(buffer);
+        const view = new DataView(buffer);
+        let eocd = -1;
+        for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 66000); i -= 1) {
+          if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+        }
+        if (eocd < 0) throw new Error("不是有效的 xlsx/zip 文件。");
+        const count = view.getUint16(eocd + 10, true);
+        let ptr = view.getUint32(eocd + 16, true);
+        const decoder = new TextDecoder("utf-8");
+        const entries = new Map();
+        for (let i = 0; i < count; i += 1) {
+          if (view.getUint32(ptr, true) !== 0x02014b50) break;
+          const method = view.getUint16(ptr + 10, true);
+          const compSize = view.getUint32(ptr + 20, true);
+          const nameLen = view.getUint16(ptr + 28, true);
+          const extraLen = view.getUint16(ptr + 30, true);
+          const commentLen = view.getUint16(ptr + 32, true);
+          const localOffset = view.getUint32(ptr + 42, true);
+          const name = decoder.decode(bytes.slice(ptr + 46, ptr + 46 + nameLen));
+          const localNameLen = view.getUint16(localOffset + 26, true);
+          const localExtraLen = view.getUint16(localOffset + 28, true);
+          const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+          entries.set(name, { method, data: bytes.slice(dataStart, dataStart + compSize) });
+          ptr += 46 + nameLen + extraLen + commentLen;
+        }
+        const text = async (name) => {
+          const entry = entries.get(name);
+          if (!entry) return "";
+          return decoder.decode(await qpaInflateZipData(entry.data, entry.method));
+        };
+        return { entries, text };
+      }
+
+      function qpaXmlDoc(xml) {
+        return new DOMParser().parseFromString(xml, "application/xml");
+      }
+
+      function qpaXmlAttr(node, name) {
+        return node.getAttribute(name) || "";
+      }
+
+      function qpaColIndex(ref) {
+        const letters = String(ref).match(/[A-Z]+/i)?.[0] || "A";
+        let idx = 0;
+        for (const ch of letters.toUpperCase()) idx = idx * 26 + ch.charCodeAt(0) - 64;
+        return idx - 1;
+      }
+
+      async function qpaExtractXlsxRows(file) {
+        const zip = await qpaReadZip(await file.arrayBuffer());
+        const sharedXml = await zip.text("xl/sharedStrings.xml");
+        const shared = sharedXml ? Array.from(qpaXmlDoc(sharedXml).getElementsByTagName("si")).map((si) => Array.from(si.getElementsByTagName("t")).map((t) => t.textContent || "").join("")) : [];
+        const workbook = qpaXmlDoc(await zip.text("xl/workbook.xml"));
+        const rels = qpaXmlDoc(await zip.text("xl/_rels/workbook.xml.rels"));
+        const relMap = new Map(Array.from(rels.getElementsByTagName("Relationship")).map((rel) => [qpaXmlAttr(rel, "Id"), qpaXmlAttr(rel, "Target")]));
+        const sheets = Array.from(workbook.getElementsByTagName("sheet")).map((sheet) => {
+          const rid = qpaXmlAttr(sheet, "r:id") || qpaXmlAttr(sheet, "id");
+          let target = relMap.get(rid) || "";
+          if (target && !target.startsWith("/")) target = "xl/" + target.replace(/^xl\//, "");
+          return { name: qpaXmlAttr(sheet, "name"), path: target.replace(/^\//, "") };
+        });
+        const preferred = sheets.find((sheet) => sheet.name === "结果分析") || sheets.find((sheet) => /result/i.test(sheet.name) || sheet.name.includes("分析")) || sheets[0];
+        if (!preferred) throw new Error("xlsx 中没有找到工作表。");
+        const sheetXml = qpaXmlDoc(await zip.text(preferred.path));
+        const rows = Array.from(sheetXml.getElementsByTagName("row")).map((rowNode) => {
+          const row = [];
+          Array.from(rowNode.getElementsByTagName("c")).forEach((cell) => {
+            const col = qpaColIndex(qpaXmlAttr(cell, "r"));
+            const type = qpaXmlAttr(cell, "t");
+            let value = "";
+            if (type === "s") {
+              const idx = parseInt(cell.getElementsByTagName("v")[0]?.textContent || "", 10);
+              value = shared[idx] ?? "";
+            } else if (type === "inlineStr") {
+              value = Array.from(cell.getElementsByTagName("t")).map((t) => t.textContent || "").join("");
+            } else {
+              value = cell.getElementsByTagName("v")[0]?.textContent || "";
+            }
+            row[col] = value;
+          });
+          return row;
+        });
+        return { sheetName: preferred.name, rows };
+      }
+
+      async function handleQpcrAnalysisFile() {
+        const file = $("qpa-file").files && $("qpa-file").files[0];
+        if (!file) return;
+        try {
+          $("qpa-file-status").textContent = "正在读取文件...";
+          if (/\.xlsx$/i.test(file.name)) {
+            const parsed = await qpaExtractXlsxRows(file);
+            const headerRow = qpaFindHeaderRow(parsed.rows);
+            if (headerRow < 0) throw new Error("没有在 xlsx 中找到孔级结果表头。");
+            $("qpa-data").value = qpaRowsToTsv(parsed.rows.slice(headerRow));
+            $("qpa-file-status").textContent = `已读取 ${file.name} 的“${parsed.sheetName}”表。`;
+          } else {
+            $("qpa-data").value = await file.text();
+            $("qpa-file-status").textContent = `已读取 ${file.name}。`;
+          }
+        } catch (error) {
+          $("qpa-file-status").textContent = error.message;
+        }
+      }
+
+      function downloadQpcrPrismCsv() {
+        if (!qpaLastPrismCsv) return;
+        const blob = new Blob(["\ufeff" + qpaLastPrismCsv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "qpcr_prism_column_data.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
       function calculateBCA() {
         const slope = getNumber("bca-slope");
         const intercept = getNumber("bca-intercept");
@@ -1673,6 +2363,10 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("cell-example").addEventListener("click", fillCellExample);
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
+        $("qpa-file").addEventListener("change", handleQpcrAnalysisFile);
+        $("qpa-analyze").addEventListener("click", analyzeQpcrData);
+        $("qpa-example").addEventListener("click", fillQpcrAnalysisExample);
+        $("qpa-download").addEventListener("click", downloadQpcrPrismCsv);
         $("bca-calc").addEventListener("click", calculateBcaAll);
         $("bca-example").addEventListener("click", fillBcaExample);
         $("lv-calc").addEventListener("click", calculateLentivirus);
@@ -1682,7 +2376,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       bindEvents();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "qpcr", "bca", "virus"].includes(initialTab)) {
+      if (["cell", "qpcr", "qpcrdata", "bca", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
