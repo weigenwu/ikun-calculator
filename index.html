@@ -30,6 +30,28 @@
       --field-h: 46px;
     }
 
+    body.theme-night {
+      --page: #111d20;
+      --surface: #17272b;
+      --surface-soft: #1d3135;
+      --surface-warm: #2b2a20;
+      --text: #edf8f6;
+      --muted: #aac1bd;
+      --border: #385458;
+      --accent: #35c8b8;
+      --accent-strong: #159285;
+      --accent-soft: #123a3a;
+      --amber: #f0b84a;
+      --amber-soft: #3b311e;
+      --ok-bg: #112d22;
+      --ok-border: #4cae72;
+      --warn-bg: #362911;
+      --warn-border: #d39b38;
+      --danger-bg: #3a1720;
+      --danger-border: #d86e83;
+      --shadow: 0 18px 46px rgba(0, 0, 0, 0.32);
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -48,6 +70,16 @@
         linear-gradient(180deg, #f7fbfa 0%, var(--page) 42%, #f8faf9 100%);
       background-size: 28px 28px, 28px 28px, auto;
       line-height: 1.58;
+      transition: background 520ms ease, color 520ms ease;
+    }
+
+    body.theme-night {
+      background:
+        radial-gradient(circle at 78% 8%, rgba(240, 184, 74, 0.18) 0 7%, transparent 15%),
+        linear-gradient(rgba(83, 194, 185, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(83, 194, 185, 0.07) 1px, transparent 1px),
+        linear-gradient(180deg, #0c1418 0%, var(--page) 46%, #151f21 100%);
+      background-size: auto, 28px 28px, 28px 28px, auto;
     }
 
     .app {
@@ -70,6 +102,14 @@
       padding: 18px 18px 18px 20px;
       overflow: hidden;
       position: relative;
+      transition: background 520ms ease, border-color 520ms ease, box-shadow 520ms ease;
+    }
+
+    body.theme-night .topbar {
+      border-color: rgba(83, 194, 185, 0.28);
+      background:
+        radial-gradient(circle at 84% 18%, rgba(240, 184, 74, 0.18) 0 12%, transparent 24%),
+        linear-gradient(135deg, rgba(20, 34, 38, 0.98) 0%, rgba(22, 47, 50, 0.98) 60%, rgba(48, 43, 28, 0.98) 100%);
     }
 
     .topbar::before {
@@ -99,6 +139,15 @@
       font-size: 16px;
     }
 
+    body.theme-night h2,
+    body.theme-night h3,
+    body.theme-night label,
+    body.theme-night .section-title,
+    body.theme-night .result-title,
+    body.theme-night .sample-check {
+      color: var(--text);
+    }
+
     .hero-side {
       flex: 0 0 auto;
       display: grid;
@@ -119,6 +168,7 @@
       font-size: 13px;
       font-weight: 800;
       white-space: nowrap;
+      transition: background 520ms ease, color 520ms ease, border-color 520ms ease;
     }
 
     .signature-chip {
@@ -131,6 +181,83 @@
       font-size: 13px;
       font-weight: 900;
       white-space: nowrap;
+      transition: background 520ms ease, color 520ms ease, border-color 520ms ease;
+    }
+
+    body.theme-night .status-chip {
+      border-color: rgba(83, 194, 185, 0.36);
+      background: rgba(18, 31, 34, 0.86);
+      color: #d8fff8;
+    }
+
+    body.theme-night .signature-chip {
+      border-color: rgba(240, 184, 74, 0.5);
+      background: rgba(59, 49, 30, 0.92);
+      color: #ffe1a3;
+    }
+
+    .theme-toggle {
+      width: fit-content;
+      margin-top: 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.84);
+      color: var(--text);
+      padding: 5px 9px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: background 520ms ease, color 520ms ease, border-color 520ms ease, transform 160ms ease;
+    }
+
+    .theme-toggle:hover,
+    .theme-toggle:focus-visible {
+      transform: translateY(-1px);
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .theme-orbit {
+      width: 38px;
+      height: 20px;
+      border-radius: 999px;
+      background: #dff4f0;
+      border: 1px solid rgba(8, 118, 109, 0.24);
+      position: relative;
+      transition: background 520ms ease, border-color 520ms ease;
+    }
+
+    .theme-dot {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 12px rgba(217, 144, 34, 0.72);
+      transition: transform 520ms ease, background 520ms ease, box-shadow 520ms ease;
+    }
+
+    body.theme-night .theme-toggle {
+      border-color: rgba(83, 194, 185, 0.36);
+      background: rgba(18, 31, 34, 0.88);
+      color: #edf8f6;
+    }
+
+    body.theme-night .theme-orbit {
+      background: #0f2228;
+      border-color: rgba(83, 194, 185, 0.35);
+    }
+
+    body.theme-night .theme-dot {
+      transform: translateX(18px);
+      background: #dbeeff;
+      box-shadow: inset -3px -2px 0 #9fb9cb, 0 0 12px rgba(219, 238, 255, 0.58);
     }
 
     .mascot-card {
@@ -182,6 +309,11 @@
       margin-bottom: 8px;
       background: rgba(237, 244, 242, 0.94);
       backdrop-filter: blur(10px);
+      transition: background 520ms ease;
+    }
+
+    body.theme-night .tabs {
+      background: rgba(17, 29, 32, 0.92);
     }
 
     .tab-button {
@@ -195,6 +327,11 @@
       cursor: pointer;
       box-shadow: 0 8px 18px rgba(21, 48, 53, 0.06);
       transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    body.theme-night .tab-button {
+      background: rgba(23, 39, 43, 0.92);
+      color: var(--text);
     }
 
     .tab-button:hover,
@@ -221,6 +358,7 @@
       padding: 22px;
       position: relative;
       overflow: hidden;
+      transition: background 520ms ease, border-color 520ms ease, box-shadow 520ms ease;
     }
 
     .tool-panel::before {
@@ -294,6 +432,12 @@
       background: linear-gradient(180deg, var(--surface-soft), #ffffff);
       padding: 15px;
       box-shadow: 0 8px 18px rgba(21, 48, 53, 0.05);
+      transition: background 520ms ease, border-color 520ms ease, box-shadow 520ms ease;
+    }
+
+    body.theme-night .panel,
+    body.theme-night details.formula-box {
+      background: linear-gradient(180deg, var(--surface-soft), var(--surface));
     }
 
     label {
@@ -314,6 +458,7 @@
       font: inherit;
       font-size: 16px;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      transition: background 520ms ease, color 520ms ease, border-color 520ms ease, box-shadow 520ms ease;
     }
 
     input,
@@ -437,6 +582,7 @@
       padding: 16px;
       overflow-x: auto;
       box-shadow: 0 12px 24px rgba(21, 48, 53, 0.08);
+      transition: background 520ms ease, border-color 520ms ease, box-shadow 520ms ease;
     }
 
     .result.ok {
@@ -478,6 +624,15 @@
       background: rgba(255, 255, 255, 0.78);
       padding: 11px;
       box-shadow: 0 6px 14px rgba(21, 48, 53, 0.05);
+      transition: background 520ms ease, border-color 520ms ease;
+    }
+
+    body.theme-night .metric,
+    body.theme-night .notice,
+    body.theme-night .table-wrap,
+    body.theme-night .chart-wrap,
+    body.theme-night table {
+      background: rgba(20, 36, 40, 0.92);
     }
 
     .metric strong {
@@ -530,6 +685,11 @@
       border-collapse: collapse;
       font-size: 14px;
       background: var(--surface);
+    }
+
+    body.theme-night th {
+      background: #20393d;
+      color: #edf8f6;
     }
 
     th,
@@ -596,6 +756,11 @@
       background: #e3e9e8;
       font-family: Consolas, Menlo, monospace;
       font-size: 14px;
+    }
+
+    body.theme-night .formula {
+      background: #263d41;
+      color: #edf8f6;
     }
 
     .section-title {
@@ -690,7 +855,8 @@
 
       .tabs,
       .actions,
-      .status-chip {
+      .status-chip,
+      .theme-toggle {
         display: none;
       }
 
@@ -719,6 +885,10 @@
         <div>
           <div class="status-chip">哎哟，你干嘛！！！</div>
           <div class="signature-chip">金吾卫w²g</div>
+          <button class="theme-toggle" type="button" id="theme-toggle" aria-pressed="false" aria-label="切换白天和夜间模式">
+            <span class="theme-orbit" aria-hidden="true"><span class="theme-dot"></span></span>
+            <span id="theme-toggle-text">白天</span>
+          </button>
         </div>
         <div class="mascot-card" aria-label="IKUN 多帧待机动画">
           <span class="mascot-sprite" role="img" aria-label="白发黑衣像素风 IKUN 宠物正在眨眼"></span>
@@ -1301,6 +1471,47 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       const $ = (id) => document.getElementById(id);
       let qpaLastPrismCsv = "";
       let qpaLastAnalyses = [];
+      const themeKey = "w2g-calculator-theme";
+
+      function storedTheme() {
+        try {
+          return localStorage.getItem(themeKey);
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function saveTheme(theme) {
+        try {
+          localStorage.setItem(themeKey, theme);
+        } catch (error) {
+          // Local file privacy modes may block localStorage; theme still works for this page view.
+        }
+      }
+
+      function preferredTheme() {
+        const saved = storedTheme();
+        if (saved === "day" || saved === "night") return saved;
+        const hour = new Date().getHours();
+        return hour >= 18 || hour < 6 ? "night" : "day";
+      }
+
+      function applyTheme(theme, persist) {
+        const night = theme === "night";
+        document.body.classList.toggle("theme-night", night);
+        const toggle = $("theme-toggle");
+        const text = $("theme-toggle-text");
+        if (toggle) {
+          toggle.setAttribute("aria-pressed", night ? "true" : "false");
+          toggle.title = night ? "切换到白天" : "切换到夜间";
+        }
+        if (text) text.textContent = night ? "夜间" : "白天";
+        if (persist) saveTheme(night ? "night" : "day");
+      }
+
+      function toggleTheme() {
+        applyTheme(document.body.classList.contains("theme-night") ? "day" : "night", true);
+      }
 
       function escapeHtml(value) {
         return String(value)
@@ -2993,6 +3204,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           button.addEventListener("click", () => activateTab(button.dataset.tab, true));
         });
 
+        $("theme-toggle").addEventListener("click", toggleTheme);
         $("cell-calc").addEventListener("click", calculateCell);
         $("cell-example").addEventListener("click", fillCellExample);
         $("seed-plate").addEventListener("change", handleSeedPlateChange);
@@ -3021,6 +3233,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("lv-example").addEventListener("click", fillLentivirusExample);
       }
 
+      applyTheme(preferredTheme(), false);
       bindEvents();
       qpaUpdateCompareModeUi();
 
