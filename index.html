@@ -727,6 +727,7 @@
     }
 
     body.theme-night .metric,
+    body.theme-night .gene-chart,
     body.theme-night .notice,
     body.theme-night .table-wrap,
     body.theme-night .chart-wrap,
@@ -745,6 +746,139 @@
       color: var(--muted);
       font-size: 13px;
       margin-top: 3px;
+    }
+
+    .mini-chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .gene-chart {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.78);
+      padding: 12px;
+    }
+
+    .gene-chart h4 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+
+    .bar-line {
+      display: grid;
+      grid-template-columns: minmax(70px, 0.9fr) minmax(120px, 2fr) auto;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+
+    .bar-track {
+      height: 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--amber));
+    }
+
+    .plate-editor {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+      gap: 14px;
+      align-items: start;
+      margin-top: 12px;
+    }
+
+    .plate-grid-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      padding: 10px;
+    }
+
+    body.theme-night .plate-grid-wrap,
+    body.theme-night .well-editor {
+      background: rgba(20, 36, 40, 0.92);
+    }
+
+    .plate-grid {
+      min-width: 920px;
+      display: grid;
+      grid-template-columns: 34px repeat(12, minmax(68px, 1fr));
+      gap: 6px;
+      align-items: stretch;
+    }
+
+    .plate-label,
+    .plate-cell {
+      border-radius: 7px;
+      min-height: 56px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .plate-label {
+      min-height: 28px;
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    .plate-cell {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 5px;
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 180ms ease, background 180ms ease;
+    }
+
+    .plate-cell:hover,
+    .plate-cell.active {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .plate-cell.empty {
+      color: var(--muted);
+      background: var(--surface-soft);
+      border-style: dashed;
+    }
+
+    .plate-cell.ref {
+      border-color: rgba(217, 144, 34, 0.5);
+    }
+
+    .plate-cell.warn {
+      border-color: var(--danger-border);
+      box-shadow: inset 0 0 0 1px rgba(220, 127, 143, 0.22);
+    }
+
+    .plate-cell small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .well-editor {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      padding: 12px;
     }
 
     .notice {
@@ -919,6 +1053,10 @@
         grid-template-columns: 1fr;
       }
 
+      .plate-editor {
+        grid-template-columns: 1fr;
+      }
+
       .quick-note {
         max-width: none;
       }
@@ -1010,7 +1148,9 @@
       <button class="tab-button" type="button" data-tab="seeding" aria-controls="panel-seeding">细胞铺板</button>
       <button class="tab-button" type="button" data-tab="drug" aria-controls="panel-drug">药物梯度</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
+      <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
       <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
+      <button class="tab-button" type="button" data-tab="qmulti" aria-controls="panel-qmulti">qPCR结果增强</button>
       <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
       <button class="tab-button" type="button" data-tab="virus" aria-controls="panel-virus">慢病毒包装</button>
     </nav>
@@ -1294,6 +1434,106 @@ Gene_2</textarea>
         </details>
       </section>
 
+      <section id="panel-mastermix" class="tool-panel" data-panel="mastermix">
+        <div class="module-head">
+          <div>
+            <h2>PCR / qPCR Master Mix 计算器增强版</h2>
+            <p class="module-note">按样本、目标引物、复孔数和多配比例，自动计算单孔体系、总量、按目标或按样本分组的 Master Mix。</p>
+          </div>
+          <div class="quick-note">适合常规 PCR、qPCR 上机前快速配液。</div>
+        </div>
+
+        <h3>一、样本与目标</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="mm-samples">样本列表</label>
+            <textarea id="mm-samples">Sample_1
+Sample_2
+Sample_3</textarea>
+            <div class="help">每行或逗号分隔一个样本名。</div>
+          </div>
+          <div class="panel">
+            <label for="mm-targets">目标 / 引物对列表</label>
+            <textarea id="mm-targets">Primer_1
+Primer_2</textarea>
+            <div class="help">每行或逗号分隔一个目标。qPCR 可填基因名，PCR 可填引物对名称。</div>
+          </div>
+        </div>
+
+        <h3>二、反应体系</h3>
+        <div class="grid">
+          <div>
+            <label for="mm-total-vol">每孔 / 每管总体系 µL</label>
+            <input id="mm-total-vol" type="number" min="0" step="any" inputmode="decimal" value="20" />
+          </div>
+          <div>
+            <label for="mm-mix-x">Master Mix 倍数</label>
+            <input id="mm-mix-x" type="number" min="0" step="any" inputmode="decimal" value="2" />
+            <div class="help">2× Mix 填 2；4× Mix 填 4。Mix 体积自动按总体系 / 倍数计算。</div>
+          </div>
+          <div>
+            <label for="mm-forward-stock">Forward primer stock µM</label>
+            <input id="mm-forward-stock" type="number" min="0" step="any" inputmode="decimal" value="10" />
+          </div>
+          <div>
+            <label for="mm-forward-final">Forward primer final µM</label>
+            <input id="mm-forward-final" type="number" min="0" step="any" inputmode="decimal" value="0.2" />
+          </div>
+          <div>
+            <label for="mm-reverse-stock">Reverse primer stock µM</label>
+            <input id="mm-reverse-stock" type="number" min="0" step="any" inputmode="decimal" value="10" />
+          </div>
+          <div>
+            <label for="mm-reverse-final">Reverse primer final µM</label>
+            <input id="mm-reverse-final" type="number" min="0" step="any" inputmode="decimal" value="0.2" />
+          </div>
+          <div>
+            <label for="mm-template-vol">模板 / cDNA 每孔 µL</label>
+            <input id="mm-template-vol" type="number" min="0" step="any" inputmode="decimal" value="2" />
+          </div>
+          <div>
+            <label for="mm-other-vol">其他固定组分每孔 µL</label>
+            <input id="mm-other-vol" type="number" min="0" step="any" inputmode="decimal" value="0" />
+          </div>
+          <div>
+            <label for="mm-replicates">每个样本 × 目标复孔数</label>
+            <input id="mm-replicates" type="number" min="1" step="1" inputmode="numeric" value="3" />
+          </div>
+          <div>
+            <label for="mm-extra-pct">额外多配比例 %</label>
+            <input id="mm-extra-pct" type="number" min="0" step="any" inputmode="decimal" value="10" />
+          </div>
+          <div>
+            <label for="mm-min-extra">每组至少额外多配反应数</label>
+            <input id="mm-min-extra" type="number" min="0" step="1" inputmode="numeric" value="1" />
+          </div>
+          <div>
+            <label for="mm-template-mode">模板加入方式</label>
+            <select id="mm-template-mode">
+              <option value="separate">模板单独加，Master Mix 不含模板</option>
+              <option value="included">模板混入，每个样本 × 目标单独配完整体系</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="mm-calc">计算 Master Mix</button>
+          <button class="action secondary" type="button" id="mm-example">填入示例</button>
+          <button class="action secondary" type="button" id="mm-download" disabled>导出配液 CSV</button>
+        </div>
+
+        <div id="mm-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div><span class="formula">Master Mix 每孔体积 = 总体系 / Master Mix 倍数</span></div>
+          <div><span class="formula">Primer 每孔体积 = 目标终浓度 × 总体系 / stock 浓度</span></div>
+          <div><span class="formula">水 = 总体系 - Mix - F primer - R primer - 模板 - 其他固定组分</span></div>
+          <div><span class="formula">配液反应数 = ceil(实际反应数 × (1 + 多配比例)) + 至少额外反应数</span></div>
+          <div class="help">选择“模板单独加”时，网页按每个目标引物对配公共 Master Mix；选择“模板混入”时，网页按每个样本 × 目标单独配完整体系。</div>
+        </details>
+      </section>
+
       <section id="panel-qpcrdata" class="tool-panel" data-panel="qpcrdata">
         <div class="module-head">
           <div>
@@ -1403,6 +1643,159 @@ Gene_2</textarea>
           <div class="section-title">统计与导出</div>
           <div>网页会对每个样本的技术孔相对表达量计算 mean、SD、SEM，并把每个重复孔作为 Prism CSV 的子列导出。</div>
           <div class="help">技术重复 t-test 只能反映当前孔级数据差异；正式论文统计通常建议使用独立生物学重复。</div>
+        </details>
+      </section>
+
+      <section id="panel-qmulti" class="tool-panel" data-panel="qmulti">
+        <div class="module-head">
+          <div>
+            <h2>qPCR 结果增强版多基因计算器</h2>
+            <p class="module-note">导入 QuantStudio 下机文件或粘贴孔级 Ct 表，自动识别样本和多个目标基因，批量计算 ΔCt、ΔΔCt、2^-ΔΔCt、P 值和 Prism 数据。</p>
+          </div>
+          <div class="quick-note">这是新增板块，原来的 qPCR 分析模块不会被覆盖。</div>
+        </div>
+
+        <h3>一、导入孔级数据</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="qme-file">上传 QuantStudio 文件，可选</label>
+            <input id="qme-file" type="file" accept=".xlsx,.csv,.tsv,.txt" />
+            <div class="help">优先读取 .xlsx 的“结果分析”表；也支持 CSV、TSV、TXT。</div>
+            <div id="qme-file-status" class="help">尚未读取文件。</div>
+          </div>
+          <div class="panel">
+            <label for="qme-data">粘贴孔级结果表</label>
+            <textarea id="qme-data" placeholder="从 QuantStudio 的“结果分析”表复制，包含表头：样本名、基因名称、Cт 或 Ct。"></textarea>
+            <div class="help">会自动忽略“忽略=true”的孔；可读取 Tm1、HIGHSD、扩增状态等信息用于提醒。</div>
+          </div>
+        </div>
+
+        <h3>二、孔板布局编辑器</h3>
+        <div class="panel">
+          <div class="help">导入或粘贴数据后，这里会显示 96 孔板排板。点任意孔可以修改样本名、基因名、Ct 和 QC 状态；计算时会按这个布局配对目标基因和内参。</div>
+          <div class="actions" style="margin-top: 10px;">
+            <button class="action secondary" type="button" id="qme-render-plate">刷新孔板布局</button>
+            <button class="action secondary" type="button" id="qme-apply-well">保存当前孔修改</button>
+            <button class="action secondary" type="button" id="qme-clear-well">清空当前孔</button>
+          </div>
+          <div class="plate-editor">
+            <div class="plate-grid-wrap">
+              <div id="qme-plate-grid" class="plate-grid" aria-label="96孔板布局">
+                <div class="help">导入数据后显示孔板布局。</div>
+              </div>
+            </div>
+            <div class="well-editor">
+              <div class="grid">
+                <div>
+                  <label for="qme-edit-well">当前孔位</label>
+                  <input id="qme-edit-well" type="text" value="A1" />
+                </div>
+                <div>
+                  <label for="qme-edit-sample">样本名</label>
+                  <input id="qme-edit-sample" type="text" placeholder="例如 Control" />
+                </div>
+                <div>
+                  <label for="qme-edit-gene">基因名称</label>
+                  <input id="qme-edit-gene" type="text" placeholder="例如 GeneA 或 ACTB" />
+                </div>
+                <div>
+                  <label for="qme-edit-ct">Ct / Cт</label>
+                  <input id="qme-edit-ct" type="number" min="0" step="any" inputmode="decimal" />
+                </div>
+                <div>
+                  <label for="qme-edit-amp">扩增状态</label>
+                  <input id="qme-edit-amp" type="text" value="Amp" />
+                </div>
+                <div>
+                  <label for="qme-edit-highsd">HIGHSD</label>
+                  <select id="qme-edit-highsd">
+                    <option value="N">N</option>
+                    <option value="Y">Y</option>
+                  </select>
+                </div>
+                <label class="sample-check" style="align-self:end;">
+                  <input id="qme-edit-ignore" type="checkbox" />
+                  <span>忽略当前孔</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3>三、批量分析设置</h3>
+        <div class="grid">
+          <div>
+            <label for="qme-ref-genes">内参基因</label>
+            <input id="qme-ref-genes" type="text" value="ACTB" />
+            <div class="help">支持多个内参，用逗号分隔；多个内参会按同一复孔序号取平均 Ct。</div>
+          </div>
+          <div>
+            <label for="qme-control-sample">对照样本</label>
+            <select id="qme-control-sample">
+              <option value="Control">Control</option>
+            </select>
+            <div class="help">导入后会自动从“样本名”列生成选项。</div>
+          </div>
+          <div>
+            <label for="qme-pair-mode">Ct 配对方式</label>
+            <select id="qme-pair-mode">
+              <option value="plate">按孔位配对：内参在目的基因下方同列</option>
+              <option value="order">按复孔顺序配对：第 1 个目标配第 1 个内参</option>
+            </select>
+            <div class="help">推荐按孔位配对，适合 96 孔板上方目的基因、下方内参的排板习惯。</div>
+          </div>
+          <div>
+            <label for="qme-row-offset">内参相对目标下移行数</label>
+            <input id="qme-row-offset" type="number" min="1" max="7" step="1" inputmode="numeric" value="1" />
+            <div class="help">A 行目标、B 行内参填 1；A 行目标、C 行内参填 2。</div>
+          </div>
+          <div>
+            <label for="qme-expected-reps">期望技术复孔数</label>
+            <input id="qme-expected-reps" type="number" min="1" step="1" inputmode="numeric" value="4" />
+          </div>
+          <div>
+            <label for="qme-ct-sd-threshold">Ct SD 警告阈值</label>
+            <input id="qme-ct-sd-threshold" type="number" min="0" step="any" inputmode="decimal" value="0.3" />
+          </div>
+          <div>
+            <label for="qme-test-mode">统计检验</label>
+            <select id="qme-test-mode">
+              <option value="welch">Welch t-test（默认）</option>
+              <option value="student">Student t-test</option>
+            </select>
+          </div>
+          <div>
+            <label for="qme-output-mode">结果输出</label>
+            <select id="qme-output-mode">
+              <option value="all">显示全部样本</option>
+              <option value="changed">优先显示有差异提示的结果</option>
+            </select>
+          </div>
+          <div class="panel" style="grid-column: 1 / -1;">
+            <label>目标基因</label>
+            <div id="qme-target-checks" class="sample-checks">
+              <div class="help">导入或粘贴数据后，会在这里生成目标基因选择。</div>
+            </div>
+            <div class="help">默认勾选除内参外的全部基因；想只分析部分基因，取消不需要的勾选即可。</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="qme-analyze">批量计算 qPCR 结果</button>
+          <button class="action secondary" type="button" id="qme-example">填入演示数据</button>
+          <button class="action secondary" type="button" id="qme-summary-download" disabled>导出汇总 CSV</button>
+          <button class="action secondary" type="button" id="qme-prism-download" disabled>导出 Prism CSV</button>
+        </div>
+
+        <div id="qme-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div><span class="formula">ΔCt = Ct(目标基因) - Ct(内参基因)</span></div>
+          <div><span class="formula">ΔΔCt = ΔCt(样本) - 平均ΔCt(对照样本)</span></div>
+          <div><span class="formula">相对表达量 = 2^(-ΔΔCt)</span></div>
+          <div><span class="formula">多个目标基因 = 对每个目标基因分别套用同一套对照样本和内参设置</span></div>
+          <div class="help">这里的 P 值基于孔级技术重复计算，只适合快速预览；正式统计仍建议用独立生物学重复。</div>
         </details>
       </section>
 
@@ -1580,6 +1973,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       const $ = (id) => document.getElementById(id);
       let qpaLastPrismCsv = "";
       let qpaLastAnalyses = [];
+      let mmLastCsv = "";
+      let qmeLastSummaryCsv = "";
+      let qmeLastPrismCsv = "";
       let musicObjectUrl = "";
       let deferredInstallPrompt = null;
       const themeKey = "w2g-calculator-theme";
@@ -1831,6 +2227,39 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         return text.split(/[\s,，;；\t]+/)
           .map((value) => parseFloat(value))
           .filter((value) => isFinite(value));
+      }
+
+      function parseNameList(text) {
+        const seen = new Set();
+        return String(text || "").split(/[\n,，;；\t]+/)
+          .map((value) => value.trim())
+          .filter((value) => {
+            const key = qpaNorm(value);
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+      }
+
+      function csvCell(value) {
+        return `"${String(value ?? "").replace(/"/g, "\"\"")}"`;
+      }
+
+      function rowsToCsv(rows) {
+        return rows.map((row) => row.map(csvCell).join(",")).join("\n");
+      }
+
+      function downloadCsv(filename, csv) {
+        if (!csv) return;
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
       }
 
       function parseBcaSamples(text) {
@@ -2299,6 +2728,193 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         calculateQpcrAll();
       }
 
+      function masterMixPreparedReactions(realReactions, extraPct, minExtra) {
+        return Math.ceil(realReactions * (1 + extraPct / 100)) + minExtra;
+      }
+
+      function calculateMasterMix() {
+        const samples = parseNameList($("mm-samples").value);
+        const targets = parseNameList($("mm-targets").value);
+        const totalVol = getNumber("mm-total-vol");
+        const mixX = getNumber("mm-mix-x");
+        const forwardStock = getNumber("mm-forward-stock");
+        const forwardFinal = getNumber("mm-forward-final");
+        const reverseStock = getNumber("mm-reverse-stock");
+        const reverseFinal = getNumber("mm-reverse-final");
+        const templateVol = getNumber("mm-template-vol");
+        const otherVol = getNumber("mm-other-vol");
+        const replicates = parseInt($("mm-replicates").value, 10);
+        const extraPct = getNumber("mm-extra-pct");
+        const minExtra = parseInt($("mm-min-extra").value, 10);
+        const templateMode = $("mm-template-mode").value;
+
+        const invalid = !samples.length || !targets.length ||
+          !isFinite(totalVol) || totalVol <= 0 ||
+          !isFinite(mixX) || mixX <= 0 ||
+          !isFinite(forwardStock) || forwardStock <= 0 ||
+          !isFinite(forwardFinal) || forwardFinal < 0 ||
+          !isFinite(reverseStock) || reverseStock <= 0 ||
+          !isFinite(reverseFinal) || reverseFinal < 0 ||
+          !isFinite(templateVol) || templateVol < 0 ||
+          !isFinite(otherVol) || otherVol < 0 ||
+          !Number.isInteger(replicates) || replicates <= 0 ||
+          !isFinite(extraPct) || extraPct < 0 ||
+          !Number.isInteger(minExtra) || minExtra < 0;
+
+        if (invalid) {
+          mmLastCsv = "";
+          $("mm-download").disabled = true;
+          setResult("mm-result", "<p class=\"result-title\">Master Mix 参数不完整，请检查样本、目标、体系体积、引物浓度和复孔设置。</p>", "danger");
+          return false;
+        }
+
+        const mixVol = totalVol / mixX;
+        const forwardVol = forwardFinal * totalVol / forwardStock;
+        const reverseVol = reverseFinal * totalVol / reverseStock;
+        const waterVol = totalVol - mixVol - forwardVol - reverseVol - templateVol - otherVol;
+        const masterPerReaction = templateMode === "separate" ? totalVol - templateVol : totalVol;
+        const hasWarn = waterVol < -1e-9;
+        const actualWells = samples.length * targets.length * replicates;
+
+        const componentTotals = new Map([
+          ["Master Mix", 0],
+          ["无酶水", 0],
+          ["Forward primer", 0],
+          ["Reverse primer", 0],
+          ["模板 / cDNA", 0],
+          ["其他固定组分", 0]
+        ]);
+        const addTotal = (name, value) => componentTotals.set(name, componentTotals.get(name) + value);
+
+        const groupRows = [];
+        if (templateMode === "separate") {
+          targets.forEach((target) => {
+            const real = samples.length * replicates;
+            const prepared = masterMixPreparedReactions(real, extraPct, minExtra);
+            addTotal("Master Mix", mixVol * prepared);
+            addTotal("无酶水", waterVol * prepared);
+            addTotal("Forward primer", forwardVol * prepared);
+            addTotal("Reverse primer", reverseVol * prepared);
+            addTotal("其他固定组分", otherVol * prepared);
+            addTotal("模板 / cDNA", templateVol * real);
+            groupRows.push([
+              escapeHtml(target),
+              "按目标引物配公共 Master Mix",
+              fmtInt(real),
+              fmtInt(prepared),
+              fmt(mixVol * prepared, 3),
+              fmt(waterVol * prepared, 3),
+              fmt(forwardVol * prepared, 3),
+              fmt(reverseVol * prepared, 3),
+              fmt(otherVol * prepared, 3),
+              "不加入",
+              fmt(masterPerReaction * prepared, 3)
+            ]);
+          });
+        } else {
+          samples.forEach((sample) => {
+            targets.forEach((target) => {
+              const real = replicates;
+              const prepared = masterMixPreparedReactions(real, extraPct, minExtra);
+              addTotal("Master Mix", mixVol * prepared);
+              addTotal("无酶水", waterVol * prepared);
+              addTotal("Forward primer", forwardVol * prepared);
+              addTotal("Reverse primer", reverseVol * prepared);
+              addTotal("模板 / cDNA", templateVol * prepared);
+              addTotal("其他固定组分", otherVol * prepared);
+              groupRows.push([
+                `${escapeHtml(sample)} / ${escapeHtml(target)}`,
+                "按样本 × 目标配完整体系",
+                fmtInt(real),
+                fmtInt(prepared),
+                fmt(mixVol * prepared, 3),
+                fmt(waterVol * prepared, 3),
+                fmt(forwardVol * prepared, 3),
+                fmt(reverseVol * prepared, 3),
+                fmt(otherVol * prepared, 3),
+                fmt(templateVol * prepared, 3),
+                fmt(masterPerReaction * prepared, 3)
+              ]);
+            });
+          });
+        }
+
+        const preparedWells = groupRows.reduce((sum, row) => sum + parseFloat(String(row[3]).replace(/,/g, "")), 0);
+        const perReactionRows = [
+          ["Master Mix", fmt(mixVol, 3)],
+          ["无酶水", fmt(waterVol, 3)],
+          ["Forward primer", fmt(forwardVol, 3)],
+          ["Reverse primer", fmt(reverseVol, 3)],
+          ["模板 / cDNA", fmt(templateVol, 3)],
+          ["其他固定组分", fmt(otherVol, 3)],
+          ["总体系", fmt(totalVol, 3)]
+        ];
+        const totalRows = Array.from(componentTotals.entries()).map(([name, value]) => [name, fmt(value, 3)]);
+
+        const csvRows = [
+          ["PCR/qPCR Master Mix 增强版"],
+          ["样本数", samples.length, "目标数", targets.length, "实际上板反应数", actualWells, "配液反应数", preparedWells],
+          [],
+          ["单孔体系", "每孔 µL"],
+          ...perReactionRows,
+          [],
+          ["总量", "µL"],
+          ...totalRows,
+          [],
+          ["分组", "方式", "实际反应数", "配液反应数", "Master Mix µL", "无酶水 µL", "F primer µL", "R primer µL", "其他 µL", "模板 µL", "分组总体积 µL"],
+          ...groupRows.map((row) => row.map((cell) => String(cell).replace(/<[^>]*>/g, "")))
+        ];
+        mmLastCsv = rowsToCsv(csvRows);
+        $("mm-download").disabled = false;
+
+        let html = `
+          <p class="result-title">PCR / qPCR Master Mix 配液结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmtInt(samples.length)}</strong><span>样本数</span></div>
+            <div class="metric"><strong>${fmtInt(targets.length)}</strong><span>目标 / 引物对数</span></div>
+            <div class="metric"><strong>${fmtInt(actualWells)} 孔</strong><span>实际上板反应数</span></div>
+            <div class="metric"><strong>${fmtInt(preparedWells)} 反应</strong><span>实际配液反应数</span></div>
+          </div>
+        `;
+
+        if (hasWarn) {
+          html += `<div class="notice danger"><strong>警告：</strong>单孔各组分体积超过总体系，当前无酶水为 ${fmt(waterVol, 3)} µL，请检查 Mix、引物、模板或其他组分。</div>`;
+        } else {
+          html += `<div class="notice ok"><strong>建议记录：</strong>${templateMode === "separate" ? "模板单独加；按每个目标引物对配公共 Master Mix。" : "模板混入；按样本 × 目标单独配完整体系。"} 每孔水 ${fmt(waterVol, 3)} µL。</div>`;
+        }
+
+        html += `<div class="section-title">单孔体系</div>`;
+        html += table(["组分", "每孔 µL"], perReactionRows);
+        html += `<div class="section-title">总量汇总</div>`;
+        html += table(["组分", "总量 µL"], totalRows);
+        html += `<div class="section-title">分组配液表</div>`;
+        html += table(["分组", "方式", "实际反应数", "配液反应数", "Mix µL", "水 µL", "F µL", "R µL", "其他 µL", "模板 µL", "总量 µL"], groupRows);
+        setResult("mm-result", html, hasWarn ? "danger" : "ok");
+        return !hasWarn;
+      }
+
+      function fillMasterMixExample() {
+        $("mm-samples").value = "Control\nTreat_1\nTreat_2";
+        $("mm-targets").value = "GeneA\nGeneB\nACTB";
+        $("mm-total-vol").value = "20";
+        $("mm-mix-x").value = "2";
+        $("mm-forward-stock").value = "10";
+        $("mm-forward-final").value = "0.2";
+        $("mm-reverse-stock").value = "10";
+        $("mm-reverse-final").value = "0.2";
+        $("mm-template-vol").value = "2";
+        $("mm-other-vol").value = "0";
+        $("mm-replicates").value = "3";
+        $("mm-extra-pct").value = "10";
+        $("mm-min-extra").value = "1";
+        $("mm-template-mode").value = "separate";
+        calculateMasterMix();
+      }
+
+      function downloadMasterMixCsv() {
+        downloadCsv("pcr_qpcr_master_mix.csv", mmLastCsv);
+      }
+
       function qpaNorm(value) {
         return String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
       }
@@ -2353,8 +2969,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         const well = find((h) => h === "反应孔位置" || h === "well" || h === "wellposition");
         const amp = find((h) => h === "扩增状态" || h === "amplificationstatus" || h === "ampstatus");
         const tm = find((h) => h === "tm1" || h === "tm");
+        const highsd = find((h) => h === "highsd" || h === "高sd");
         const ignored = find((h) => h === "忽略" || h === "omit" || h === "ignore");
-        return { sample, gene, ct, well, amp, tm, ignored };
+        return { sample, gene, ct, well, amp, tm, highsd, ignored };
       }
 
       function qpaFindHeaderRow(rows) {
@@ -2365,7 +2982,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         return -1;
       }
 
-      function qpaParseTextTable(text) {
+      function qpaParseTextTableRows(text, includeIgnored) {
         const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
         if (!lines.length) return [];
         const firstUseful = lines.find((line) => line.trim()) || "";
@@ -2387,10 +3004,19 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
             well: idx.well >= 0 ? row[idx.well] || "" : "",
             amp: idx.amp >= 0 ? row[idx.amp] || "" : "",
             tm: idx.tm >= 0 ? parseFloat(row[idx.tm]) : NaN,
+            highsd: idx.highsd >= 0 ? row[idx.highsd] || "" : "",
             ignored,
             rowIndex: rowIndex + headerRow + 2
           };
-        }).filter((row) => row.sample && row.gene && isFinite(row.ct) && !["true", "yes", "1"].includes(row.ignored));
+        }).filter((row) => row.sample && row.gene && isFinite(row.ct) && (includeIgnored || !["true", "yes", "1"].includes(row.ignored)));
+      }
+
+      function qpaParseTextTable(text) {
+        return qpaParseTextTableRows(text, false);
+      }
+
+      function qpaParseTextTableAll(text) {
+        return qpaParseTextTableRows(text, true);
       }
 
       function qpaUniqueNames(rows, key) {
@@ -2445,7 +3071,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       }
 
       function qpaReadCustomBuilderRaw() {
-        return Array.from(document.querySelectorAll("#qpa-custom-rows .qpa-comparison-row")).map((row) => {
+        return Array.from(document.querySelectorAll("#qpa-custom-rows .comparison-row")).map((row) => {
           const control = row.querySelector(".qpa-row-control")?.value || "";
           const treatments = Array.from(row.querySelectorAll(".qpa-treatment:checked")).map((input) => input.value);
           return { control, treatments };
@@ -3103,16 +3729,566 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       }
 
       function downloadQpcrPrismCsv() {
-        if (!qpaLastPrismCsv) return;
-        const blob = new Blob(["\ufeff" + qpaLastPrismCsv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "qpcr_prism_column_data.csv";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        downloadCsv("qpcr_prism_column_data.csv", qpaLastPrismCsv);
+      }
+
+      function qmeRefGenes() {
+        return parseNameList($("qme-ref-genes").value);
+      }
+
+      function qmeSelectedTargets() {
+        return Array.from(document.querySelectorAll(".qme-target:checked")).map((input) => input.value);
+      }
+
+      function qmeParseRows() {
+        return qpaParseTextTable($("qme-data").value);
+      }
+
+      function qmeParseAllRows() {
+        try {
+          return qpaParseTextTableAll($("qme-data").value);
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function qmeWellKey(well) {
+        return String(well || "").trim().toUpperCase();
+      }
+
+      function qmeWellMeta(well) {
+        const match = qmeWellKey(well).match(/^([A-H])\s*0?([1-9]|1[0-2])$/);
+        if (!match) return null;
+        return {
+          row: match[1],
+          rowIndex: match[1].charCodeAt(0) - 65,
+          col: parseInt(match[2], 10),
+          key: `${match[1]}${parseInt(match[2], 10)}`
+        };
+      }
+
+      function qmeOffsetWell(well, offset) {
+        const meta = qmeWellMeta(well);
+        if (!meta) return "";
+        const nextRow = meta.rowIndex + offset;
+        if (nextRow < 0 || nextRow > 7) return "";
+        return `${String.fromCharCode(65 + nextRow)}${meta.col}`;
+      }
+
+      function qmeWellSortValue(well) {
+        const meta = qmeWellMeta(well);
+        return meta ? meta.rowIndex * 12 + meta.col : 9999;
+      }
+
+      function qmeRowsToEditableTsv(rows) {
+        const cleanRows = rows
+          .filter((row) => qmeWellMeta(row.well))
+          .sort((a, b) => qmeWellSortValue(a.well) - qmeWellSortValue(b.well));
+        return qpaRowsToTsv([
+          ["反应孔位置", "样本名", "基因名称", "Cт", "扩增状态", "HIGHSD", "忽略"],
+          ...cleanRows.map((row) => [
+            qmeWellMeta(row.well).key,
+            row.sample,
+            row.gene,
+            row.ct,
+            row.amp || "Amp",
+            row.highsd || "N",
+            row.ignored || "false"
+          ])
+        ]);
+      }
+
+      function qmeRowsByWell(rows) {
+        const map = new Map();
+        rows.forEach((row) => {
+          const key = qmeWellMeta(row.well)?.key;
+          if (!key) return;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key).push(row);
+        });
+        return map;
+      }
+
+      function qmeRenderPlate(selectedWell) {
+        const grid = $("qme-plate-grid");
+        if (!grid) return;
+        const rows = qmeParseAllRows();
+        if (!rows.length) {
+          grid.innerHTML = `<div class="help">导入数据后显示孔板布局。</div>`;
+          return;
+        }
+        const selected = qmeWellMeta(selectedWell || $("qme-edit-well").value)?.key || "A1";
+        const byWell = qmeRowsByWell(rows);
+        const refSet = new Set(qmeRefGenes().map(qpaNorm));
+        const parts = [`<div class="plate-label"></div>`];
+        for (let col = 1; col <= 12; col += 1) parts.push(`<div class="plate-label">${col}</div>`);
+        for (let rowIndex = 0; rowIndex < 8; rowIndex += 1) {
+          const rowLetter = String.fromCharCode(65 + rowIndex);
+          parts.push(`<div class="plate-label">${rowLetter}</div>`);
+          for (let col = 1; col <= 12; col += 1) {
+            const well = `${rowLetter}${col}`;
+            const entry = (byWell.get(well) || [])[0];
+            const classes = ["plate-cell"];
+            if (!entry) classes.push("empty");
+            if (entry && refSet.has(qpaNorm(entry.gene))) classes.push("ref");
+            if (entry && (qpaNorm(entry.highsd) === "y" || ["true", "yes", "1"].includes(qpaNorm(entry.ignored)))) classes.push("warn");
+            if (well === selected) classes.push("active");
+            const body = entry
+              ? `<strong>${escapeHtml(well)}</strong><span>${escapeHtml(entry.sample)}</span><small>${escapeHtml(entry.gene)} · Ct ${fmt(entry.ct, 2)}</small>`
+              : `<strong>${escapeHtml(well)}</strong><small>空</small>`;
+            parts.push(`<button class="${classes.join(" ")}" type="button" data-well="${well}">${body}</button>`);
+          }
+        }
+        grid.innerHTML = parts.join("");
+      }
+
+      function qmeSelectWell(well) {
+        const meta = qmeWellMeta(well);
+        if (!meta) return;
+        const rows = qmeParseAllRows();
+        const entry = rows.find((row) => qmeWellMeta(row.well)?.key === meta.key);
+        $("qme-edit-well").value = meta.key;
+        $("qme-edit-sample").value = entry?.sample || "";
+        $("qme-edit-gene").value = entry?.gene || "";
+        $("qme-edit-ct").value = isFinite(entry?.ct) ? entry.ct : "";
+        $("qme-edit-amp").value = entry?.amp || "Amp";
+        $("qme-edit-highsd").value = qpaNorm(entry?.highsd) === "y" ? "Y" : "N";
+        $("qme-edit-ignore").checked = ["true", "yes", "1"].includes(qpaNorm(entry?.ignored));
+        qmeRenderPlate(meta.key);
+      }
+
+      function qmeApplyWellEdit() {
+        const meta = qmeWellMeta($("qme-edit-well").value);
+        if (!meta) {
+          setResult("qme-result", `<p class="result-title">孔位格式不正确</p><div class="notice danger">请填写 A1 到 H12 范围内的孔位。</div>`, "danger");
+          return;
+        }
+        const rows = qmeParseAllRows().filter((row) => qmeWellMeta(row.well)?.key !== meta.key);
+        const sample = $("qme-edit-sample").value.trim();
+        const gene = $("qme-edit-gene").value.trim();
+        const ct = parseFloat($("qme-edit-ct").value);
+        if (sample && gene && isFinite(ct)) {
+          rows.push({
+            well: meta.key,
+            sample,
+            gene,
+            ct,
+            amp: $("qme-edit-amp").value.trim() || "Amp",
+            highsd: $("qme-edit-highsd").value || "N",
+            ignored: $("qme-edit-ignore").checked ? "true" : "false"
+          });
+        }
+        $("qme-data").value = qmeRowsToEditableTsv(rows);
+        qmeRefreshOptions();
+        qmeSelectWell(meta.key);
+      }
+
+      function qmeClearWellEdit() {
+        const meta = qmeWellMeta($("qme-edit-well").value);
+        if (!meta) return;
+        const rows = qmeParseAllRows().filter((row) => qmeWellMeta(row.well)?.key !== meta.key);
+        $("qme-data").value = qmeRowsToEditableTsv(rows);
+        qmeRefreshOptions();
+        qmeSelectWell(meta.key);
+      }
+
+      function qmeRefreshOptions() {
+        const select = $("qme-control-sample");
+        const checks = $("qme-target-checks");
+        const previousControl = select.value;
+        const previousTargets = new Set(qmeSelectedTargets().map(qpaNorm));
+        try {
+          const rows = qmeParseRows();
+          const samples = qpaUniqueNames(rows, "sample");
+          const genes = qpaUniqueNames(rows, "gene");
+          qmeRefreshOptions.last = { rows, samples, genes };
+          if (!samples.length || !genes.length) {
+            qmeRenderPlate();
+            return [];
+          }
+
+          const refs = qmeRefGenes();
+          const genesByNorm = new Map(genes.map((gene) => [qpaNorm(gene), gene]));
+          if (!refs.length || !refs.some((gene) => genesByNorm.has(qpaNorm(gene)))) {
+            $("qme-ref-genes").value = qpaPickReferenceGene(genes);
+          }
+          const refSet = new Set(qmeRefGenes().map(qpaNorm));
+          const targets = genes.filter((gene) => !refSet.has(qpaNorm(gene)));
+
+          select.innerHTML = samples.map((sample) => `<option value="${escapeHtml(sample)}">${escapeHtml(sample)}</option>`).join("");
+          if (samples.some((sample) => qpaNorm(sample) === qpaNorm(previousControl))) {
+            select.value = samples.find((sample) => qpaNorm(sample) === qpaNorm(previousControl));
+          } else if (samples.some((sample) => qpaNorm(sample) === "control")) {
+            select.value = samples.find((sample) => qpaNorm(sample) === "control");
+          } else {
+            select.value = samples[0];
+          }
+
+          const hasTargetMatch = targets.some((gene) => previousTargets.has(qpaNorm(gene)));
+          checks.innerHTML = targets.map((gene) => {
+            const checked = previousTargets.size && hasTargetMatch ? previousTargets.has(qpaNorm(gene)) : true;
+            return `
+              <label class="sample-check">
+                <input class="qme-target" type="checkbox" value="${escapeHtml(gene)}"${checked ? " checked" : ""} />
+                <span>${escapeHtml(gene)}</span>
+              </label>
+            `;
+          }).join("") || `<div class="help">没有找到除内参外的目标基因，请检查内参设置。</div>`;
+          qmeRenderPlate();
+          return samples;
+        } catch (error) {
+          qmeRefreshOptions.last = { rows: [], samples: [], genes: [] };
+          checks.innerHTML = `<div class="help">导入或粘贴数据后，会在这里生成目标基因选择。</div>`;
+          qmeRenderPlate();
+          return [];
+        }
+      }
+
+      function qmeScheduleRefresh() {
+        clearTimeout(qmeScheduleRefresh.timer);
+        qmeScheduleRefresh.timer = setTimeout(qmeRefreshOptions, 180);
+      }
+
+      function qmeRowsFor(rows, sample, gene) {
+        return rows.filter((row) => qpaNorm(row.sample) === qpaNorm(sample) && qpaNorm(row.gene) === qpaNorm(gene));
+      }
+
+      function qmePairForSample(rows, sample, targetGene, refGenes, settings) {
+        const targetRows = qmeRowsFor(rows, sample, targetGene);
+        const refRowsByGene = refGenes.map((gene) => qmeRowsFor(rows, sample, gene));
+        const refSet = new Set(refGenes.map(qpaNorm));
+        const warnings = [];
+        const pairs = [];
+
+        if (settings.pairMode === "plate") {
+          const byWell = qmeRowsByWell(rows.filter((row) => qpaNorm(row.sample) === qpaNorm(sample)));
+          targetRows.forEach((targetRow) => {
+            const targetWell = qmeWellMeta(targetRow.well)?.key;
+            const refWell = qmeOffsetWell(targetWell, settings.rowOffset);
+            if (!targetWell || !refWell) {
+              warnings.push(`${targetRow.well || "未知孔"} 无法计算配对孔`);
+              return;
+            }
+            const refRow = (byWell.get(refWell) || []).find((row) => refSet.has(qpaNorm(row.gene)));
+            if (!refRow) {
+              warnings.push(`${targetWell} 未找到下方同列内参孔 ${refWell}`);
+              return;
+            }
+            pairs.push({ targetRow, refRow });
+          });
+        } else {
+          const refCtsByGene = refRowsByGene.map((geneRows) => geneRows.map((row) => row.ct));
+          const pairN = Math.min(targetRows.length, ...refCtsByGene.map((cts) => cts.length));
+          for (let i = 0; i < pairN; i += 1) {
+            const pseudoRef = {
+              ct: qpaMean(refCtsByGene.map((cts) => cts[i])),
+              well: refRowsByGene.map((geneRows) => geneRows[i]?.well).filter(Boolean).join("/"),
+              gene: refGenes.join("+"),
+              highsd: refRowsByGene.some((geneRows) => qpaNorm(geneRows[i]?.highsd) === "y") ? "Y" : "N",
+              amp: refRowsByGene.map((geneRows) => geneRows[i]?.amp).filter(Boolean).join("/")
+            };
+            pairs.push({ targetRow: targetRows[i], refRow: pseudoRef });
+          }
+        }
+
+        return { targetRows, refRowsByGene, pairs, warnings };
+      }
+
+      function qmeAnalyzeTarget(rows, targetGene, refGenes, controlSample, samples, settings) {
+        const summaries = samples.map((sample) => {
+          const paired = qmePairForSample(rows, sample, targetGene, refGenes, settings);
+          const targetRows = paired.targetRows;
+          const refRowsByGene = paired.refRowsByGene;
+          const targetCts = paired.pairs.map((pair) => pair.targetRow.ct);
+          const refCtReps = paired.pairs.map((pair) => pair.refRow.ct);
+          const deltaCtReps = paired.pairs.map((pair) => pair.targetRow.ct - pair.refRow.ct);
+          const pairN = paired.pairs.length;
+          const warnings = [];
+          const pairedRows = paired.pairs.flatMap((pair) => [pair.targetRow, pair.refRow]);
+          const highSdRows = pairedRows.filter((row) => qpaNorm(row.highsd) === "y");
+          const ampWarn = pairedRows.filter((row) => row.amp && !/^amp$/i.test(String(row.amp).trim()));
+          paired.warnings.forEach((text) => warnings.push(text));
+          if (Number.isInteger(settings.expectedReps) && settings.expectedReps > 0 && pairN !== settings.expectedReps) warnings.push(`有效配对复孔 ${pairN}/${settings.expectedReps}`);
+          if (isFinite(settings.sdThreshold) && settings.sdThreshold > 0 && qpaSd(targetCts) > settings.sdThreshold) warnings.push(`目标 Ct SD ${fmt(qpaSd(targetCts), 3)} 偏高`);
+          if (isFinite(settings.sdThreshold) && settings.sdThreshold > 0 && qpaSd(refCtReps) > settings.sdThreshold) warnings.push(`内参 Ct SD ${fmt(qpaSd(refCtReps), 3)} 偏高`);
+          if (!targetRows.length) warnings.push("缺少目标基因 Ct");
+          if (targetRows.length && !targetCts.length) warnings.push("没有形成目标/内参孔位配对");
+          refGenes.forEach((gene, index) => {
+            if (!refRowsByGene[index].length) warnings.push(`缺少内参 ${gene} Ct`);
+          });
+          if (highSdRows.length) warnings.push(`HIGHSD 孔 ${highSdRows.length} 个`);
+          if (ampWarn.length) warnings.push(`扩增状态提醒 ${ampWarn.length} 个`);
+          return {
+            sample,
+            targetCts,
+            refCtReps,
+            pairN,
+            targetCtMean: qpaMean(targetCts),
+            targetCtSd: qpaSd(targetCts),
+            refCtMean: qpaMean(refCtReps),
+            refCtSd: qpaSd(refCtReps),
+            deltaCtReps,
+            deltaCtMean: qpaMean(deltaCtReps),
+            warnings
+          };
+        });
+
+        const control = summaries.find((entry) => qpaNorm(entry.sample) === qpaNorm(controlSample));
+        if (!control || control.pairN <= 0) {
+          throw new Error(`${targetGene}: 对照样本缺少有效的目标/内参配对 Ct。`);
+        }
+        const controlDeltaMean = control.deltaCtMean;
+        summaries.forEach((entry) => {
+          entry.ddCtReps = entry.deltaCtReps.map((delta) => delta - controlDeltaMean);
+          entry.rqReps = entry.ddCtReps.map((ddct) => Math.pow(2, -ddct));
+          entry.ddCtMean = qpaMean(entry.ddCtReps);
+          entry.rqMean = qpaMean(entry.rqReps);
+          entry.rqSd = qpaSd(entry.rqReps);
+          entry.rqSem = qpaSem(entry.rqReps);
+          const test = qpaNorm(entry.sample) === qpaNorm(control.sample) ? { p: 1, t: 0, df: entry.pairN - 1 } : qpaTTest(entry.rqReps, control.rqReps, settings.testMode);
+          entry.pValue = test.p;
+          entry.pStars = qpaPStars(test.p);
+        });
+        return { targetGene, refGenes, control: control.sample, summaries: summaries.filter((entry) => entry.pairN > 0) };
+      }
+
+      function qmeBuildSummaryCsv(analyses) {
+        const rows = [["目标基因", "样本", "对照样本", "有效复孔", "目标Ct均值", "目标Ct SD", "内参Ct均值", "内参Ct SD", "ΔCt", "ΔΔCt", "2^-ΔΔCt mean", "SD", "SEM", "P value", "显著性", "提醒"]];
+        analyses.forEach((analysis) => {
+          analysis.summaries.forEach((entry) => {
+            rows.push([
+              analysis.targetGene,
+              entry.sample,
+              analysis.control,
+              entry.pairN,
+              fmt(entry.targetCtMean, 4),
+              fmt(entry.targetCtSd, 4),
+              fmt(entry.refCtMean, 4),
+              fmt(entry.refCtSd, 4),
+              fmt(entry.deltaCtMean, 4),
+              fmt(entry.ddCtMean, 4),
+              fmt(entry.rqMean, 6),
+              fmt(entry.rqSd, 6),
+              fmt(entry.rqSem, 6),
+              isFinite(entry.pValue) ? entry.pValue : "",
+              entry.pStars,
+              entry.warnings.join("; ")
+            ]);
+          });
+        });
+        return rowsToCsv(rows);
+      }
+
+      function qmeBuildPrismCsv(analyses) {
+        return analyses.map((analysis) => {
+          const maxN = Math.max(...analysis.summaries.map((entry) => entry.rqReps.length));
+          const rows = [[`Target: ${analysis.targetGene}; Control: ${analysis.control}`], analysis.summaries.map((entry) => entry.sample)];
+          for (let i = 0; i < maxN; i += 1) {
+            rows.push(analysis.summaries.map((entry) => isFinite(entry.rqReps[i]) ? entry.rqReps[i] : ""));
+          }
+          return rowsToCsv(rows);
+        }).join("\n\n");
+      }
+
+      function qmeChartHtml(analyses) {
+        return `
+          <div class="mini-chart-grid">
+            ${analyses.map((analysis) => {
+              const max = Math.max(1, ...analysis.summaries.map((entry) => entry.rqMean));
+              const bars = analysis.summaries.map((entry) => {
+                const width = Math.max(2, Math.min(100, entry.rqMean / max * 100));
+                return `
+                  <div class="bar-line">
+                    <span>${escapeHtml(entry.sample)}</span>
+                    <span class="bar-track"><span class="bar-fill" style="width:${width}%"></span></span>
+                    <span>${fmt(entry.rqMean, 3)} ${entry.pStars}</span>
+                  </div>
+                `;
+              }).join("");
+              return `<div class="gene-chart"><h4>${escapeHtml(analysis.targetGene)}</h4>${bars}</div>`;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function analyzeQpcrMulti() {
+        try {
+          const rows = qmeParseRows();
+          const samples = qpaUniqueNames(rows, "sample");
+          const refGenes = qmeRefGenes();
+          const targets = qmeSelectedTargets();
+          const control = $("qme-control-sample").value;
+          const settings = {
+            expectedReps: parseInt($("qme-expected-reps").value, 10),
+            sdThreshold: getNumber("qme-ct-sd-threshold"),
+            testMode: $("qme-test-mode").value,
+            pairMode: $("qme-pair-mode").value,
+            rowOffset: parseInt($("qme-row-offset").value, 10)
+          };
+          if (!rows.length || !samples.length) throw new Error("请先导入或粘贴孔级 Ct 表。");
+          if (!refGenes.length) throw new Error("请填写内参基因。");
+          if (!targets.length) throw new Error("请至少勾选一个目标基因。");
+          if (!samples.some((sample) => qpaNorm(sample) === qpaNorm(control))) throw new Error("请选择有效的对照样本。");
+          if (settings.pairMode === "plate" && (!Number.isInteger(settings.rowOffset) || settings.rowOffset <= 0)) throw new Error("按孔位配对时，请填写有效的内参下移行数。");
+
+          const failed = [];
+          let analyses = targets.map((target) => {
+            try {
+              return qmeAnalyzeTarget(rows, target, refGenes, control, samples, settings);
+            } catch (error) {
+              failed.push(error.message);
+              return null;
+            }
+          }).filter(Boolean);
+          if (!analyses.length) throw new Error(failed.join("；") || "没有可计算的目标基因。");
+
+          if ($("qme-output-mode").value === "changed") {
+            analyses = analyses.map((analysis) => ({
+              ...analysis,
+              summaries: [...analysis.summaries].sort((a, b) => {
+                const asig = isFinite(a.pValue) && a.pValue < 0.05 ? 0 : 1;
+                const bsig = isFinite(b.pValue) && b.pValue < 0.05 ? 0 : 1;
+                return asig - bsig || qpaNorm(a.sample).localeCompare(qpaNorm(b.sample));
+              })
+            }));
+          }
+
+          qmeLastSummaryCsv = qmeBuildSummaryCsv(analyses);
+          qmeLastPrismCsv = qmeBuildPrismCsv(analyses);
+          $("qme-summary-download").disabled = false;
+          $("qme-prism-download").disabled = false;
+
+          const tableRows = [];
+          const warnings = [];
+          analyses.forEach((analysis) => {
+            analysis.summaries.forEach((entry) => {
+              if (entry.warnings.length) warnings.push(`${analysis.targetGene}/${entry.sample}: ${entry.warnings.join("；")}`);
+              tableRows.push([
+                escapeHtml(analysis.targetGene),
+                escapeHtml(entry.sample),
+                fmtInt(entry.pairN),
+                fmt(entry.targetCtMean, 3),
+                fmt(entry.refCtMean, 3),
+                fmt(entry.deltaCtMean, 3),
+                fmt(entry.ddCtMean, 3),
+                fmt(entry.rqMean, 4),
+                fmt(entry.rqSd, 4),
+                fmt(entry.rqSem, 4),
+                isFinite(entry.pValue) ? fmt(entry.pValue, 5) : "n/a",
+                escapeHtml(entry.pStars),
+                escapeHtml(entry.warnings.join("；") || "OK")
+              ]);
+            });
+          });
+
+          let html = `
+            <p class="result-title">qPCR 多基因结果增强版</p>
+            <div class="metric-grid">
+              <div class="metric"><strong>${fmtInt(rows.length)}</strong><span>有效孔级 Ct 记录</span></div>
+              <div class="metric"><strong>${fmtInt(samples.length)}</strong><span>样本数</span></div>
+              <div class="metric"><strong>${fmtInt(refGenes.length)}</strong><span>内参数</span></div>
+              <div class="metric"><strong>${fmtInt(analyses.length)}</strong><span>成功计算目标基因数</span></div>
+              <div class="metric"><strong>${settings.pairMode === "plate" ? "孔位" : "顺序"}</strong><span>Ct 配对方式</span></div>
+            </div>
+            <div class="notice ${warnings.length || failed.length ? "warn" : "ok"}"><strong>QC：</strong>${warnings.length || failed.length ? escapeHtml([...warnings.slice(0, 8), ...failed.slice(0, 4)].join("；")) : "未发现明显复孔数量、Ct SD 或 HIGHSD 警告。"}</div>
+          `;
+          html += qmeChartHtml(analyses);
+          html += `<div class="section-title">多基因汇总表</div>`;
+          html += table(["目标基因", "样本", "有效复孔", "目标Ct", "内参Ct", "ΔCt", "ΔΔCt", "2^-ΔΔCt", "SD", "SEM", "P value", "显著性", "提醒"], tableRows);
+          setResult("qme-result", html, warnings.length || failed.length ? "warn" : "ok");
+        } catch (error) {
+          qmeLastSummaryCsv = "";
+          qmeLastPrismCsv = "";
+          $("qme-summary-download").disabled = true;
+          $("qme-prism-download").disabled = true;
+          setResult("qme-result", `<p class="result-title">qPCR 多基因分析失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
+        }
+      }
+
+      async function handleQpcrMultiFile() {
+        const file = $("qme-file").files && $("qme-file").files[0];
+        if (!file) return;
+        try {
+          $("qme-file-status").textContent = "正在读取文件...";
+          if (/\.xlsx$/i.test(file.name)) {
+            const parsed = await qpaExtractXlsxRows(file);
+            const headerRow = qpaFindHeaderRow(parsed.rows);
+            if (headerRow < 0) throw new Error("没有在 xlsx 中找到孔级结果表头。");
+            $("qme-data").value = qpaRowsToTsv(parsed.rows.slice(headerRow));
+            const samples = qmeRefreshOptions();
+            const genes = qmeRefreshOptions.last?.genes || [];
+            $("qme-file-status").textContent = `已读取 ${file.name} 的“${parsed.sheetName}”表。`;
+            if (samples.length) $("qme-file-status").textContent += ` 已识别 ${samples.length} 个样本。`;
+            if (genes.length) $("qme-file-status").textContent += ` 已识别 ${genes.length} 个基因。`;
+          } else {
+            $("qme-data").value = await file.text();
+            const samples = qmeRefreshOptions();
+            const genes = qmeRefreshOptions.last?.genes || [];
+            $("qme-file-status").textContent = `已读取 ${file.name}。`;
+            if (samples.length) $("qme-file-status").textContent += ` 已识别 ${samples.length} 个样本。`;
+            if (genes.length) $("qme-file-status").textContent += ` 已识别 ${genes.length} 个基因。`;
+          }
+        } catch (error) {
+          $("qme-file-status").textContent = error.message;
+        }
+      }
+
+      function fillQpcrMultiExample() {
+        $("qme-data").value = [
+          "反应孔\t反应孔位置\t忽略\t样本名\t基因名称\tCт\t扩增状态\tHIGHSD",
+          "1\tA1\tfalse\tControl\tGeneA\t23.10\tAmp\tN",
+          "2\tA2\tfalse\tControl\tGeneA\t23.02\tAmp\tN",
+          "3\tA3\tfalse\tControl\tGeneA\t23.16\tAmp\tN",
+          "4\tA4\tfalse\tTreat_1\tGeneA\t21.30\tAmp\tN",
+          "5\tA5\tfalse\tTreat_1\tGeneA\t21.22\tAmp\tN",
+          "6\tA6\tfalse\tTreat_1\tGeneA\t21.41\tAmp\tN",
+          "7\tA7\tfalse\tTreat_2\tGeneA\t24.20\tAmp\tN",
+          "8\tA8\tfalse\tTreat_2\tGeneA\t24.12\tAmp\tN",
+          "9\tA9\tfalse\tTreat_2\tGeneA\t24.31\tAmp\tN",
+          "10\tB1\tfalse\tControl\tACTB\t18.00\tAmp\tN",
+          "11\tB2\tfalse\tControl\tACTB\t18.08\tAmp\tN",
+          "12\tB3\tfalse\tControl\tACTB\t17.96\tAmp\tN",
+          "13\tB4\tfalse\tTreat_1\tACTB\t18.12\tAmp\tN",
+          "14\tB5\tfalse\tTreat_1\tACTB\t18.04\tAmp\tN",
+          "15\tB6\tfalse\tTreat_1\tACTB\t18.17\tAmp\tN",
+          "16\tB7\tfalse\tTreat_2\tACTB\t18.02\tAmp\tN",
+          "17\tB8\tfalse\tTreat_2\tACTB\t18.11\tAmp\tN",
+          "18\tB9\tfalse\tTreat_2\tACTB\t18.05\tAmp\tN",
+          "19\tC1\tfalse\tControl\tGeneB\t26.10\tAmp\tN",
+          "20\tC2\tfalse\tControl\tGeneB\t26.00\tAmp\tN",
+          "21\tC3\tfalse\tControl\tGeneB\t26.16\tAmp\tN",
+          "22\tC4\tfalse\tTreat_1\tGeneB\t25.20\tAmp\tN",
+          "23\tC5\tfalse\tTreat_1\tGeneB\t25.28\tAmp\tN",
+          "24\tC6\tfalse\tTreat_1\tGeneB\t25.31\tAmp\tN",
+          "25\tC7\tfalse\tTreat_2\tGeneB\t22.40\tAmp\tN",
+          "26\tC8\tfalse\tTreat_2\tGeneB\t22.52\tAmp\tN",
+          "27\tC9\tfalse\tTreat_2\tGeneB\t22.43\tAmp\tN",
+          "28\tD1\tfalse\tControl\tACTB\t18.00\tAmp\tN",
+          "29\tD2\tfalse\tControl\tACTB\t18.08\tAmp\tN",
+          "30\tD3\tfalse\tControl\tACTB\t17.96\tAmp\tN",
+          "31\tD4\tfalse\tTreat_1\tACTB\t18.12\tAmp\tN",
+          "32\tD5\tfalse\tTreat_1\tACTB\t18.04\tAmp\tN",
+          "33\tD6\tfalse\tTreat_1\tACTB\t18.17\tAmp\tN",
+          "34\tD7\tfalse\tTreat_2\tACTB\t18.02\tAmp\tN",
+          "35\tD8\tfalse\tTreat_2\tACTB\t18.11\tAmp\tN",
+          "36\tD9\tfalse\tTreat_2\tACTB\t18.05\tAmp\tN"
+        ].join("\n");
+        $("qme-ref-genes").value = "ACTB";
+        $("qme-expected-reps").value = "3";
+        $("qme-ct-sd-threshold").value = "0.3";
+        $("qme-test-mode").value = "welch";
+        $("qme-pair-mode").value = "plate";
+        $("qme-row-offset").value = "1";
+        qmeRefreshOptions();
+        analyzeQpcrMulti();
+      }
+
+      function downloadQpcrMultiSummaryCsv() {
+        downloadCsv("qpcr_multi_gene_summary.csv", qmeLastSummaryCsv);
+      }
+
+      function downloadQpcrMultiPrismCsv() {
+        downloadCsv("qpcr_multi_gene_prism.csv", qmeLastPrismCsv);
       }
 
       function calculateBCA() {
@@ -3444,6 +4620,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("drug-example").addEventListener("click", fillDrugExample);
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
+        $("mm-calc").addEventListener("click", calculateMasterMix);
+        $("mm-example").addEventListener("click", fillMasterMixExample);
+        $("mm-download").addEventListener("click", downloadMasterMixCsv);
         $("qpa-file").addEventListener("change", handleQpcrAnalysisFile);
         $("qpa-data").addEventListener("input", qpaScheduleSampleRefresh);
         $("qpa-control-sample").addEventListener("change", () => {
@@ -3457,6 +4636,23 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("qpa-example").addEventListener("click", fillQpcrAnalysisExample);
         $("qpa-chart-select").addEventListener("change", qpaDrawSelectedChart);
         $("qpa-download").addEventListener("click", downloadQpcrPrismCsv);
+        $("qme-file").addEventListener("change", handleQpcrMultiFile);
+        $("qme-data").addEventListener("input", qmeScheduleRefresh);
+        $("qme-ref-genes").addEventListener("input", qmeScheduleRefresh);
+        $("qme-render-plate").addEventListener("click", () => {
+          qmeRefreshOptions();
+          qmeRenderPlate();
+        });
+        $("qme-plate-grid").addEventListener("click", (event) => {
+          const cell = event.target.closest(".plate-cell");
+          if (cell?.dataset.well) qmeSelectWell(cell.dataset.well);
+        });
+        $("qme-apply-well").addEventListener("click", qmeApplyWellEdit);
+        $("qme-clear-well").addEventListener("click", qmeClearWellEdit);
+        $("qme-analyze").addEventListener("click", analyzeQpcrMulti);
+        $("qme-example").addEventListener("click", fillQpcrMultiExample);
+        $("qme-summary-download").addEventListener("click", downloadQpcrMultiSummaryCsv);
+        $("qme-prism-download").addEventListener("click", downloadQpcrMultiPrismCsv);
         $("bca-calc").addEventListener("click", calculateBcaAll);
         $("bca-example").addEventListener("click", fillBcaExample);
         $("lv-calc").addEventListener("click", calculateLentivirus);
@@ -3470,7 +4666,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       qpaUpdateCompareModeUi();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "seeding", "drug", "qpcr", "qpcrdata", "bca", "virus"].includes(initialTab)) {
+      if (["cell", "seeding", "drug", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
