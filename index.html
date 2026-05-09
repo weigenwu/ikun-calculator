@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>实验常用计算器</title>
+  <style>
+    :root {
+      --page: #f6f8f7;
+      --surface: #ffffff;
+      --surface-soft: #f1f5f4;
+      --text: #1f2933;
+      --muted: #61717b;
+      --border: #d7dfdd;
+      --accent: #0f766e;
+      --accent-strong: #115e59;
+      --accent-soft: #dff5f1;
+      --ok-bg: #effaf1;
+      --ok-border: #8cc99b;
+      --warn-bg: #fff4e6;
+      --warn-border: #e3a14d;
+      --danger-bg: #fff1f2;
+      --danger-border: #e48a97;
+      --shadow: 0 12px 32px rgba(31, 41, 51, 0.08);
+      --radius: 8px;
+      --field-h: 46px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+      color: var(--text);
+      background: var(--page);
+      line-height: 1.58;
+    }
+
+    .app {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 44px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-end;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .status-chip {
+      flex: 0 0 auto;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .tabs {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 10px 0;
+      margin-bottom: 8px;
+      background: rgba(246, 248, 247, 0.96);
+      backdrop-filter: blur(10px);
+    }
+
+    .tab-button {
+      min-height: 44px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+    }
+
+    .tab-button:hover,
+    .tab-button:focus-visible {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .tab-button.active {
+      border-color: var(--accent-strong);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .tool-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .tool-panel.active {
+      display: block;
+    }
+
+    .module-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 22px 0 12px;
+      font-size: 19px;
+      letter-spacing: 0;
+    }
+
+    .module-note {
+      color: var(--muted);
+      margin: 6px 0 0;
+    }
+
+    .quick-note {
+      max-width: 420px;
+      border-left: 4px solid var(--accent);
+      padding: 8px 12px;
+      background: var(--surface-soft);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      padding: 15px;
+    }
+
+    label {
+      display: block;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid #aebbb8;
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+    }
+
+    input {
+      min-height: var(--field-h);
+      padding: 9px 11px;
+    }
+
+    textarea {
+      min-height: 150px;
+      padding: 11px;
+      resize: vertical;
+      font-family: Consolas, Menlo, "Microsoft YaHei", monospace;
+      line-height: 1.45;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      outline: 3px solid var(--accent-soft);
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0 0;
+    }
+
+    button.action {
+      min-height: 44px;
+      border: 0;
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button.action.secondary {
+      background: #455a64;
+    }
+
+    button.action:hover,
+    button.action:focus-visible {
+      background: var(--accent-strong);
+      outline: none;
+    }
+
+    button.action.secondary:hover,
+    button.action.secondary:focus-visible {
+      background: #2f444d;
+    }
+
+    .result {
+      display: none;
+      margin-top: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 16px;
+      overflow-x: auto;
+    }
+
+    .result.ok {
+      background: var(--ok-bg);
+      border-color: var(--ok-border);
+    }
+
+    .result.warn {
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+    }
+
+    .result.danger {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+    }
+
+    .result-title {
+      font-size: 20px;
+      font-weight: 900;
+      margin: 0 0 10px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .metric {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.78);
+      padding: 11px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .notice {
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 11px 12px;
+      margin-top: 12px;
+    }
+
+    .notice.ok {
+      border-left-color: #2f9e44;
+    }
+
+    .notice.warn {
+      border-left-color: #d97706;
+    }
+
+    .notice.danger {
+      border-left-color: #d23f57;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--surface);
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    th:last-child,
+    td:last-child {
+      border-right: 0;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    th {
+      background: #e8efed;
+      font-weight: 900;
+    }
+
+    details.formula-box {
+      margin-top: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      padding: 12px 14px;
+    }
+
+    details.formula-box summary {
+      cursor: pointer;
+      font-weight: 900;
+      min-height: 30px;
+    }
+
+    .formula {
+      display: inline-block;
+      margin: 4px 0;
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: #e3e9e8;
+      font-family: Consolas, Menlo, monospace;
+      font-size: 14px;
+    }
+
+    .section-title {
+      font-weight: 900;
+      margin: 16px 0 8px;
+      font-size: 17px;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 18px;
+      text-align: center;
+    }
+
+    @media (max-width: 820px) {
+      h1 {
+        font-size: 28px;
+      }
+
+      .topbar,
+      .module-head,
+      .two-col {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .status-chip {
+        width: fit-content;
+      }
+
+      .tool-panel {
+        padding: 15px;
+      }
+
+      .tabs {
+        grid-template-columns: 1fr;
+        position: static;
+      }
+
+      .quick-note {
+        max-width: none;
+      }
+
+      table {
+        min-width: 860px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .tabs,
+      .actions,
+      .status-chip {
+        display: none;
+      }
+
+      .app {
+        width: 100%;
+        padding: 0;
+      }
+
+      .tool-panel {
+        display: block;
+        break-inside: avoid;
+        box-shadow: none;
+        margin-bottom: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>实验常用计算器</h1>
+        <p class="subtitle">Fast Read 102 细胞计数、qPCR 配液、BCA/WB 上样量计算</p>
+      </div>
+      <div class="status-chip">纯本地计算，无联网依赖</div>
+    </header>
+
+    <nav class="tabs" aria-label="计算器模块">
+      <button class="tab-button active" type="button" data-tab="cell" aria-controls="panel-cell">细胞计数板</button>
+      <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
+      <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
+    </nav>
+
+    <main>
+      <section id="panel-cell" class="tool-panel active" data-panel="cell">
+        <div class="module-head">
+          <div>
+            <h2>Fast Read 102 细胞计数板计算器</h2>
+            <p class="module-note">20 µL 直接计数版：不加台盼蓝，不额外稀释，输入一个大方格内数到的细胞数量。</p>
+          </div>
+          <div class="quick-note">20 µL 只是上样体积记录，不参与浓度公式。</div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label for="cell-count">一个大方格的细胞数量</label>
+            <input id="cell-count" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 80" />
+            <div class="help">如果数多个大方格，请输入平均值。</div>
+          </div>
+          <div>
+            <label for="cell-volume">当前细胞悬液体积 mL</label>
+            <input id="cell-volume" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 1" />
+            <div class="help">例如离心重悬后这一管目前有 1 mL。</div>
+          </div>
+          <div>
+            <label for="cell-target-conc">目标细胞浓度 cells/mL</label>
+            <input id="cell-target-conc" type="number" min="0" step="any" inputmode="decimal" value="1500000" />
+            <div class="help">默认 1.5 × 10^6 cells/mL。</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="cell-calc">计算需要补加多少培养基</button>
+          <button class="action secondary" type="button" id="cell-example">填入示例</button>
+        </div>
+
+        <div id="cell-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明与提醒</summary>
+          <div class="section-title">公式</div>
+          <div><span class="formula">当前浓度 = 一个大方格细胞数量 × 10^4</span></div>
+          <div><span class="formula">当前总细胞数 = 当前浓度 × 当前细胞悬液体积</span></div>
+          <div><span class="formula">目标最终体积 = 当前总细胞数 / 目标细胞浓度</span></div>
+          <div><span class="formula">需要补加培养基 = 目标最终体积 - 当前细胞悬液体积</span></div>
+          <div class="section-title">提醒</div>
+          <div>如果以后改成细胞液和台盼蓝 1:1 混合计数，当前浓度需要乘以 2。</div>
+          <div class="help">边界细胞建议固定计入两条边，例如左边和上边计入，右边和下边不计入。</div>
+        </details>
+      </section>
+
+      <section id="panel-qpcr" class="tool-panel" data-panel="qpcr">
+        <div class="module-head">
+          <div>
+            <h2>qPCR RT 逆转录与上机配液计算器</h2>
+            <p class="module-note">同一份 RNA 样本列表用于 RT 体积计算和 qPCR 样本数统计。</p>
+          </div>
+          <div class="quick-note">复孔数和额外多配孔数都可以按当天实验调整。</div>
+        </div>
+
+        <h3>一、RT 逆转录体系</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="rt-samples">RNA 样本与浓度</label>
+            <textarea id="rt-samples">Sample_1, 100
+Sample_2, 80</textarea>
+            <div class="help">每行一个样本。格式：样本名, RNA浓度。浓度单位默认为 ng/µL。</div>
+          </div>
+
+          <div class="panel">
+            <div class="grid">
+              <div>
+                <label for="rt-target-rna">每个样本用于逆转录的 RNA 量 ng</label>
+                <input id="rt-target-rna" type="number" min="0" step="any" inputmode="decimal" value="1000" />
+                <div class="help">默认 1000 ng，可改为 800、500 等。</div>
+              </div>
+              <div>
+                <label for="rt-total-vol">RT 总体系 µL</label>
+                <input id="rt-total-vol" type="number" min="0" step="any" inputmode="decimal" value="20" />
+              </div>
+              <div>
+                <label for="rt-gdna-vol">5× gDNA 试剂体积 µL</label>
+                <input id="rt-gdna-vol" type="number" min="0" step="any" inputmode="decimal" value="4" />
+              </div>
+              <div>
+                <label for="rt-mix-vol">4× 逆转录试剂体积 µL</label>
+                <input id="rt-mix-vol" type="number" min="0" step="any" inputmode="decimal" value="5" />
+              </div>
+              <div>
+                <label for="rt-other-vol">其他固定组分 µL</label>
+                <input id="rt-other-vol" type="number" min="0" step="any" inputmode="decimal" value="0" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3>二、qPCR 上机体系</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="qpcr-genes">检测基因或引物列表</label>
+            <textarea id="qpcr-genes">Gene_1
+Gene_2</textarea>
+            <div class="help">每行一个基因。程序按“样本 × 基因 × 复孔数”计算。</div>
+          </div>
+
+          <div class="panel">
+            <div class="grid">
+              <div>
+                <label for="qpcr-total-vol">每孔 qPCR 总体系 µL</label>
+                <input id="qpcr-total-vol" type="number" min="0" step="any" inputmode="decimal" value="20" />
+              </div>
+              <div>
+                <label for="qpcr-replicates">每个样本每个基因复孔数</label>
+                <input id="qpcr-replicates" type="number" min="1" step="1" inputmode="numeric" value="4" />
+              </div>
+              <div>
+                <label for="qpcr-extra">每组额外多配孔数</label>
+                <input id="qpcr-extra" type="number" min="0" step="1" inputmode="numeric" value="1" />
+              </div>
+              <div>
+                <label for="qpcr-mix-vol">qPCR Mix 每孔 µL</label>
+                <input id="qpcr-mix-vol" type="number" min="0" step="any" inputmode="decimal" value="10" />
+              </div>
+              <div>
+                <label for="qpcr-forward-vol">Forward primer 每孔 µL</label>
+                <input id="qpcr-forward-vol" type="number" min="0" step="any" inputmode="decimal" value="0.4" />
+              </div>
+              <div>
+                <label for="qpcr-reverse-vol">Reverse primer 每孔 µL</label>
+                <input id="qpcr-reverse-vol" type="number" min="0" step="any" inputmode="decimal" value="0.4" />
+              </div>
+              <div>
+                <label for="qpcr-cdna-vol">cDNA 每孔 µL</label>
+                <input id="qpcr-cdna-vol" type="number" min="0" step="any" inputmode="decimal" value="2" />
+              </div>
+              <div>
+                <label for="qpcr-other-vol">其他固定组分每孔 µL</label>
+                <input id="qpcr-other-vol" type="number" min="0" step="any" inputmode="decimal" value="0" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="qpcr-calc">计算 RT 和 qPCR</button>
+          <button class="action secondary" type="button" id="qpcr-example">填入示例</button>
+        </div>
+
+        <div id="rt-result" class="result" aria-live="polite"></div>
+        <div id="qpcr-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div class="section-title">RT 逆转录</div>
+          <div><span class="formula">RNA体积 = 自定义逆转录RNA量 / RNA浓度</span></div>
+          <div><span class="formula">无酶水体积 = RT总体系 - RNA体积 - 5×gDNA体积 - 4×逆转录试剂体积 - 其他固定组分体积</span></div>
+          <div class="section-title">qPCR</div>
+          <div><span class="formula">每孔无酶水 = 每孔总体系 - qPCR Mix - Forward primer - Reverse primer - cDNA - 其他固定组分</span></div>
+          <div><span class="formula">每组实际配液孔数 = 复孔数 + 额外多配孔数</span></div>
+          <div><span class="formula">实际上板孔数 = 样本数 × 基因数 × 复孔数</span></div>
+          <div><span class="formula">实际配液总孔数 = 样本数 × 基因数 × 每组实际配液孔数</span></div>
+        </details>
+      </section>
+
+      <section id="panel-bca" class="tool-panel" data-panel="bca">
+        <div class="module-head">
+          <div>
+            <h2>BCA 蛋白浓度与 WB 已煮样上样量计算器</h2>
+            <p class="module-note">适用于先加 5× loading buffer 煮样，BCA 出结果后再从已煮样取样并用 1× loading buffer 补足的流程。</p>
+          </div>
+          <div class="quick-note">上胶当天只计算“已煮样 + 1× loading buffer”，不再计算加入 5× loading buffer 的体积。</div>
+        </div>
+
+        <h3>一、BCA 标准曲线与 OD</h3>
+        <div class="grid">
+          <div>
+            <label for="bca-slope">标准曲线斜率 slope</label>
+            <input id="bca-slope" type="number" step="any" inputmode="decimal" value="2.0352" />
+          </div>
+          <div>
+            <label for="bca-intercept">标准曲线截距 intercept</label>
+            <input id="bca-intercept" type="number" step="any" inputmode="decimal" value="-0.4435" />
+            <div class="help">默认标准曲线：y = 2.0352x - 0.4435。</div>
+          </div>
+          <div>
+            <label for="bca-blanks">空孔 OD</label>
+            <input id="bca-blanks" type="text" inputmode="decimal" value="0.000" placeholder="例如 0.052, 0.050, 0.051" />
+            <div class="help">可输入 1 个或多个，用逗号、空格或制表符分隔。</div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:14px;">
+          <label for="bca-samples">样本信息</label>
+          <textarea id="bca-samples">Sample_1, 10, 0.850, 0.862, 0.855
+Sample_2, 10, 0.730, 0.742, 0.736
+Sample_3, 5, 0.910, 0.918, 0.906</textarea>
+          <div class="help">每行一个样本。格式：样本名, 稀释倍数, OD1, OD2, OD3。OD 复孔可以是 2 个、3 个或更多。</div>
+        </div>
+
+        <h3>二、已煮样 WB 上样设置</h3>
+        <div class="grid">
+          <div>
+            <label for="wb-final-lane-vol">每个泳道最终上样总体积 µL</label>
+            <input id="wb-final-lane-vol" type="number" min="0" step="any" inputmode="decimal" value="20" />
+          </div>
+          <div>
+            <label for="wb-loading-x">煮样时 Loading buffer 倍数</label>
+            <input id="wb-loading-x" type="number" min="1" step="any" inputmode="decimal" value="5" />
+            <div class="help">5× loading buffer 按蛋白原液:loading buffer = 4:1 混合时填 5。</div>
+          </div>
+          <div>
+            <label for="wb-target-protein">指定每孔上样蛋白量 µg，可选</label>
+            <input id="wb-target-protein" type="number" min="0" step="any" inputmode="decimal" placeholder="留空则自动计算" />
+            <div class="help">留空时按最稀已煮样计算所有样本都能达到的最大统一蛋白量。</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="bca-calc">计算 BCA 和 WB 上样量</button>
+          <button class="action secondary" type="button" id="bca-example">填入示例</button>
+        </div>
+
+        <div id="bca-result" class="result" aria-live="polite"></div>
+        <div id="wb-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div class="section-title">BCA 浓度计算</div>
+          <div><span class="formula">平均样本OD = 样本复孔OD平均值</span></div>
+          <div><span class="formula">平均空孔OD = 空孔OD平均值</span></div>
+          <div><span class="formula">校正OD = 平均样本OD - 平均空孔OD</span></div>
+          <div><span class="formula">稀释后浓度 = (校正OD - intercept) / slope</span></div>
+          <div><span class="formula">原液蛋白浓度 = 稀释后浓度 × 稀释倍数</span></div>
+          <div class="section-title">已煮样 WB 上样量</div>
+          <div><span class="formula">蛋白原液占比 = (loading buffer倍数 - 1) / loading buffer倍数</span></div>
+          <div><span class="formula">已煮样蛋白浓度 = 原液蛋白浓度 × 蛋白原液占比</span></div>
+          <div><span class="formula">自动统一蛋白量 = min(已煮样蛋白浓度 × 每泳道最终上样体积)</span></div>
+          <div><span class="formula">取已煮样体积 = 统一蛋白量 / 已煮样蛋白浓度</span></div>
+          <div><span class="formula">1× loading补足体积 = 每泳道最终上样体积 - 取已煮样体积</span></div>
+        </details>
+      </section>
+    </main>
+
+    <div class="footer">单文件 index.html，可直接本地打开，也可上传到 GitHub Pages、Netlify 或 Vercel。</div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const $ = (id) => document.getElementById(id);
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function getNumber(id) {
+        return parseFloat($(id).value);
+      }
+
+      function fmt(value, digits = 3) {
+        if (!isFinite(value)) return "";
+        const rounded = Number(value.toFixed(digits));
+        return rounded.toLocaleString();
+      }
+
+      function fmtFixed(value, digits = 3) {
+        if (!isFinite(value)) return "无法计算";
+        return fmt(value, digits);
+      }
+
+      function fmtInt(value) {
+        if (!isFinite(value)) return "";
+        return Math.round(value).toLocaleString();
+      }
+
+      function sci(value) {
+        if (!isFinite(value)) return "";
+        if (value === 0) return "0";
+        const exp = Math.floor(Math.log10(Math.abs(value)));
+        const mant = value / Math.pow(10, exp);
+        return mant.toFixed(3).replace(/\.?0+$/, "") + " × 10^" + exp;
+      }
+
+      function mean(values) {
+        if (!values.length) return NaN;
+        return values.reduce((sum, x) => sum + x, 0) / values.length;
+      }
+
+      function sd(values) {
+        if (values.length < 2) return 0;
+        const avg = mean(values);
+        const variance = values.reduce((sum, x) => sum + Math.pow(x - avg, 2), 0) / (values.length - 1);
+        return Math.sqrt(variance);
+      }
+
+      function cvPercent(values) {
+        const avg = mean(values);
+        if (!isFinite(avg) || avg === 0 || values.length < 2) return 0;
+        return sd(values) / avg * 100;
+      }
+
+      function setResult(id, html, tone) {
+        const box = $(id);
+        box.style.display = "block";
+        box.className = "result " + (tone || "");
+        box.innerHTML = html;
+      }
+
+      function table(headers, rows) {
+        return `
+          <div class="table-wrap">
+            <table>
+              <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
+              <tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function splitLines(text) {
+        return text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      }
+
+      function parseRtSamples(text) {
+        return splitLines(text).map((line, index) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length >= 2) {
+            return { name: parts[0], conc: parseFloat(parts[1]), raw: line };
+          }
+          return { name: parts[0] || "Sample_" + (index + 1), conc: NaN, raw: line };
+        });
+      }
+
+      function parseGeneLines(text) {
+        return splitLines(text);
+      }
+
+      function parseNumbers(text) {
+        return text.split(/[\s,，;；\t]+/)
+          .map((value) => parseFloat(value))
+          .filter((value) => isFinite(value));
+      }
+
+      function parseBcaSamples(text) {
+        return splitLines(text).map((line, index) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length < 3) {
+            return { name: "Line_" + (index + 1), dilution: NaN, ods: [], raw: line };
+          }
+          return {
+            name: parts[0],
+            dilution: parseFloat(parts[1]),
+            ods: parts.slice(2).map((value) => parseFloat(value)).filter((value) => isFinite(value)),
+            raw: line
+          };
+        });
+      }
+
+      function calculateCell() {
+        const cellCount = getNumber("cell-count");
+        const currentVolume = getNumber("cell-volume");
+        const targetConc = getNumber("cell-target-conc");
+
+        if (!isFinite(cellCount) || cellCount < 0 || !isFinite(currentVolume) || currentVolume <= 0 || !isFinite(targetConc) || targetConc <= 0) {
+          setResult("cell-result", "<p class=\"result-title\">请填写有效的三个数据。</p>", "danger");
+          return;
+        }
+
+        const currentConc = cellCount * 10000;
+        const totalCells = currentConc * currentVolume;
+        const finalVolume = totalCells / targetConc;
+        const addMediumMl = finalVolume - currentVolume;
+        const addMediumUl = addMediumMl * 1000;
+
+        const metrics = `
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmt(currentConc, 0)}</strong><span>当前细胞浓度 cells/mL</span></div>
+            <div class="metric"><strong>${fmtInt(totalCells)}</strong><span>当前总细胞数 cells</span></div>
+            <div class="metric"><strong>${fmt(finalVolume, 3)} mL</strong><span>达到目标浓度后的最终体积</span></div>
+            <div class="metric"><strong>${addMediumMl >= 0 ? fmt(addMediumMl, 3) + " mL" : "需浓缩"}</strong><span>需要补加培养基</span></div>
+          </div>
+        `;
+
+        const rows = [
+          ["上样方式", "直接吸取 20 µL 细胞悬液计数，无额外稀释"],
+          ["一个大方格细胞数量", fmt(cellCount, 3)],
+          ["当前细胞浓度", `${fmt(currentConc, 0)} cells/mL<br>${sci(currentConc)} cells/mL`],
+          ["当前细胞悬液体积", `${fmt(currentVolume, 3)} mL`],
+          ["当前总细胞数", `${fmtInt(totalCells)} cells<br>${sci(totalCells)} cells`],
+          ["目标细胞浓度", `${fmt(targetConc, 0)} cells/mL<br>${sci(targetConc)} cells/mL`],
+          ["达到目标浓度后的最终体积", `${fmt(finalVolume, 3)} mL`]
+        ];
+
+        let conclusion = "";
+        let tone = "ok";
+        if (addMediumMl >= 0) {
+          rows.push(["需要补加培养基", `<strong>${fmt(addMediumMl, 3)} mL</strong><br><strong>${fmt(addMediumUl, 3)} µL</strong>`]);
+          conclusion = "<div class=\"notice ok\"><strong>结论：</strong>可以直接补加培养基稀释到目标浓度。</div>";
+        } else {
+          rows.push(["需要补加培养基", "<strong>不能通过补加培养基达到目标浓度</strong>"]);
+          rows.push(["建议重悬体积", `${fmt(finalVolume, 3)} mL`]);
+          conclusion = `<div class="notice danger"><strong>结论：</strong>当前浓度低于目标浓度，不能通过补加培养基达到目标浓度，需要离心浓缩。建议重悬至 ${fmt(finalVolume, 3)} mL。</div>`;
+          tone = "danger";
+        }
+
+        setResult(
+          "cell-result",
+          `<p class="result-title">细胞计数与补液结果</p>${metrics}${table(["项目", "结果"], rows)}${conclusion}`,
+          tone
+        );
+      }
+
+      function fillCellExample() {
+        $("cell-count").value = "220";
+        $("cell-volume").value = "1";
+        $("cell-target-conc").value = "1500000";
+        calculateCell();
+      }
+
+      function calculateRT(samples) {
+        const targetRnaNg = getNumber("rt-target-rna");
+        const rtTotalVol = getNumber("rt-total-vol");
+        const gdnaVol = getNumber("rt-gdna-vol");
+        const rtMixVol = getNumber("rt-mix-vol");
+        const rtOtherVol = getNumber("rt-other-vol");
+        const invalid = !isFinite(targetRnaNg) || targetRnaNg <= 0 ||
+          !isFinite(rtTotalVol) || rtTotalVol <= 0 ||
+          !isFinite(gdnaVol) || gdnaVol < 0 ||
+          !isFinite(rtMixVol) || rtMixVol < 0 ||
+          !isFinite(rtOtherVol) || rtOtherVol < 0 ||
+          samples.length === 0;
+
+        if (invalid) {
+          setResult("rt-result", "<p class=\"result-title\">RT 参数或样本信息不完整。</p>", "danger");
+          return false;
+        }
+
+        const fixedVol = gdnaVol + rtMixVol + rtOtherVol;
+        let hasWarn = false;
+        const rows = samples.map((sample) => {
+          let status = "可配";
+          let rnaVol = NaN;
+          let waterVol = NaN;
+
+          if (!isFinite(sample.conc) || sample.conc <= 0) {
+            status = "RNA浓度无效";
+            hasWarn = true;
+          } else {
+            rnaVol = targetRnaNg / sample.conc;
+            waterVol = rtTotalVol - fixedVol - rnaVol;
+            if (waterVol < 0) {
+              status = "RNA体积过大，需要降低逆转录RNA量或浓缩RNA。";
+              hasWarn = true;
+            }
+          }
+
+          return [
+            escapeHtml(sample.name),
+            fmtFixed(sample.conc, 3),
+            fmt(targetRnaNg, 1),
+            fmtFixed(rnaVol, 3),
+            fmt(gdnaVol, 3),
+            fmt(rtMixVol, 3),
+            fmt(rtOtherVol, 3),
+            fmtFixed(waterVol, 3),
+            fmt(rtTotalVol, 3),
+            escapeHtml(status)
+          ];
+        });
+
+        const header = `
+          <p class="result-title">RT 逆转录配液结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmt(targetRnaNg, 1)} ng</strong><span>每个样本目标 RNA 量</span></div>
+            <div class="metric"><strong>${fmt(rtTotalVol, 3)} µL</strong><span>RT 总体系</span></div>
+            <div class="metric"><strong>${fmt(fixedVol, 3)} µL</strong><span>固定组分合计</span></div>
+          </div>
+        `;
+
+        setResult(
+          "rt-result",
+          header + table(["样本", "RNA浓度 ng/µL", "目标RNA ng", "RNA体积 µL", "5×gDNA µL", "4×RT试剂 µL", "其他固定组分 µL", "无酶水 µL", "最终体系 µL", "判断"], rows),
+          hasWarn ? "warn" : "ok"
+        );
+        return true;
+      }
+
+      function calculateQPCR(samples, genes) {
+        const qpcrTotalVol = getNumber("qpcr-total-vol");
+        const replicates = parseInt($("qpcr-replicates").value, 10);
+        const extraReactions = parseInt($("qpcr-extra").value, 10);
+        const qpcrMixVol = getNumber("qpcr-mix-vol");
+        const forwardPrimerVol = getNumber("qpcr-forward-vol");
+        const reversePrimerVol = getNumber("qpcr-reverse-vol");
+        const cdnaVol = getNumber("qpcr-cdna-vol");
+        const qpcrOtherVol = getNumber("qpcr-other-vol");
+
+        const invalid = samples.length === 0 || genes.length === 0 ||
+          !isFinite(qpcrTotalVol) || qpcrTotalVol <= 0 ||
+          !Number.isInteger(replicates) || replicates <= 0 ||
+          !Number.isInteger(extraReactions) || extraReactions < 0 ||
+          !isFinite(qpcrMixVol) || qpcrMixVol < 0 ||
+          !isFinite(forwardPrimerVol) || forwardPrimerVol < 0 ||
+          !isFinite(reversePrimerVol) || reversePrimerVol < 0 ||
+          !isFinite(cdnaVol) || cdnaVol < 0 ||
+          !isFinite(qpcrOtherVol) || qpcrOtherVol < 0;
+
+        if (invalid) {
+          setResult("qpcr-result", "<p class=\"result-title\">qPCR 参数、样本或基因信息不完整。</p>", "danger");
+          return false;
+        }
+
+        const perWellWater = qpcrTotalVol - qpcrMixVol - forwardPrimerVol - reversePrimerVol - cdnaVol - qpcrOtherVol;
+        const reactionsPerGroup = replicates + extraReactions;
+        const realWells = samples.length * genes.length * replicates;
+        const preparedWells = samples.length * genes.length * reactionsPerGroup;
+
+        const totalQpcrMix = qpcrMixVol * preparedWells;
+        const totalWater = perWellWater * preparedWells;
+        const totalForward = forwardPrimerVol * preparedWells;
+        const totalReverse = reversePrimerVol * preparedWells;
+        const totalCdna = cdnaVol * preparedWells;
+        const totalOther = qpcrOtherVol * preparedWells;
+        const hasWarn = perWellWater < 0;
+
+        const totalsRows = [
+          ["qPCR Mix", fmt(qpcrMixVol, 3), fmt(totalQpcrMix, 3)],
+          ["无酶水", fmt(perWellWater, 3), fmt(totalWater, 3)],
+          ["Forward primer", fmt(forwardPrimerVol, 3), fmt(totalForward, 3)],
+          ["Reverse primer", fmt(reversePrimerVol, 3), fmt(totalReverse, 3)],
+          ["cDNA", fmt(cdnaVol, 3), fmt(totalCdna, 3)],
+          ["其他固定组分", fmt(qpcrOtherVol, 3), fmt(totalOther, 3)],
+          ["<strong>实际上板孔数</strong>", "", `<strong>${fmtInt(realWells)} 孔</strong>`],
+          ["<strong>实际配液总孔数</strong>", "", `<strong>${fmtInt(preparedWells)} 孔</strong>`]
+        ];
+
+        const splitRows = [
+          [
+            "qPCR Mix + 水",
+            "qPCR Mix + 无酶水 + 其他固定组分",
+            fmt(qpcrMixVol + perWellWater + qpcrOtherVol, 3),
+            fmt(totalQpcrMix + totalWater + totalOther, 3),
+            "若所有孔 qPCR Mix 和水用量一致，可先配成公共混合液。"
+          ],
+          [
+            "引物 + cDNA",
+            "Forward primer + Reverse primer + cDNA",
+            fmt(forwardPrimerVol + reversePrimerVol + cdnaVol, 3),
+            fmt(totalForward + totalReverse + totalCdna, 3),
+            "通常按样本和基因分组。"
+          ]
+        ];
+
+        const groupRows = [[
+          fmtInt(replicates),
+          fmtInt(reactionsPerGroup),
+          fmt(qpcrMixVol * reactionsPerGroup, 3),
+          fmt(perWellWater * reactionsPerGroup, 3),
+          fmt(forwardPrimerVol * reactionsPerGroup, 3),
+          fmt(reversePrimerVol * reactionsPerGroup, 3),
+          fmt(cdnaVol * reactionsPerGroup, 3),
+          fmt(qpcrOtherVol * reactionsPerGroup, 3),
+          fmt(qpcrTotalVol * reactionsPerGroup, 3)
+        ]];
+
+        const listRows = [];
+        samples.forEach((sample) => {
+          genes.forEach((gene) => {
+            listRows.push([escapeHtml(sample.name), escapeHtml(gene), fmtInt(replicates), fmtInt(reactionsPerGroup)]);
+          });
+        });
+
+        let html = `
+          <p class="result-title">qPCR 上机配液结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${samples.length}</strong><span>样本数</span></div>
+            <div class="metric"><strong>${genes.length}</strong><span>基因数</span></div>
+            <div class="metric"><strong>${fmtInt(realWells)} 孔</strong><span>实际上板孔数</span></div>
+            <div class="metric"><strong>${fmtInt(preparedWells)} 孔</strong><span>实际配液总孔数</span></div>
+          </div>
+        `;
+
+        if (hasWarn) {
+          html += "<div class=\"notice danger\"><strong>警告：</strong>每孔各组分体积超过总体系，请检查 qPCR Mix、引物、cDNA 或其他组分体积。</div>";
+        }
+
+        html += table(["项目", "每孔 µL", "总量 µL"], totalsRows);
+        html += `<div class="section-title">按你的习惯拆分成两类混合液</div>`;
+        html += table(["混合液", "组成", "每孔 µL", "总量 µL", "说明"], splitRows);
+        html += `<div class="section-title">每个样本 × 每个基因的单组配液量</div>`;
+        html += table(["每组实际上板复孔数", "每组实际配液孔数", "qPCR Mix µL", "无酶水 µL", "F primer µL", "R primer µL", "cDNA µL", "其他 µL", "总量 µL"], groupRows);
+        html += `<div class="section-title">样本 × 基因分组清单</div>`;
+        html += table(["样本", "基因", "上板复孔", "配液孔数"], listRows);
+
+        setResult("qpcr-result", html, hasWarn ? "warn" : "ok");
+        return true;
+      }
+
+      function calculateQpcrAll() {
+        const samples = parseRtSamples($("rt-samples").value);
+        const genes = parseGeneLines($("qpcr-genes").value);
+        calculateRT(samples);
+        calculateQPCR(samples, genes);
+      }
+
+      function fillQpcrExample() {
+        $("rt-samples").value = "Sample_1, 100\nSample_2, 80";
+        $("rt-target-rna").value = "1000";
+        $("rt-total-vol").value = "20";
+        $("rt-gdna-vol").value = "4";
+        $("rt-mix-vol").value = "5";
+        $("rt-other-vol").value = "0";
+        $("qpcr-genes").value = "GAPDH\nIFNG\nERBB2";
+        $("qpcr-total-vol").value = "20";
+        $("qpcr-replicates").value = "4";
+        $("qpcr-extra").value = "1";
+        $("qpcr-mix-vol").value = "10";
+        $("qpcr-forward-vol").value = "0.4";
+        $("qpcr-reverse-vol").value = "0.4";
+        $("qpcr-cdna-vol").value = "2";
+        $("qpcr-other-vol").value = "0";
+        calculateQpcrAll();
+      }
+
+      function calculateBCA() {
+        const slope = getNumber("bca-slope");
+        const intercept = getNumber("bca-intercept");
+        const blanks = parseNumbers($("bca-blanks").value);
+        const blankMean = mean(blanks);
+        const samples = parseBcaSamples($("bca-samples").value);
+
+        if (!isFinite(slope) || slope === 0 || !isFinite(intercept) || !isFinite(blankMean) || samples.length === 0) {
+          setResult("bca-result", "<p class=\"result-title\">BCA 参数不完整，请检查标准曲线、空孔和样本输入。</p>", "danger");
+          return { ok: false, rows: [] };
+        }
+
+        let hasWarn = false;
+        const rows = samples.map((sample) => {
+          const rawMean = mean(sample.ods);
+          const rawCv = cvPercent(sample.ods);
+          const correctedOd = rawMean - blankMean;
+          const dilutedConc = (correctedOd - intercept) / slope;
+          const originalConc = dilutedConc * sample.dilution;
+          let status = "可用";
+
+          if (!isFinite(sample.dilution) || sample.dilution <= 0) {
+            status = "稀释倍数无效";
+            hasWarn = true;
+          } else if (!sample.ods.length) {
+            status = "缺少OD";
+            hasWarn = true;
+          } else if (!isFinite(dilutedConc) || dilutedConc < 0) {
+            status = "浓度为负或无法计算";
+            hasWarn = true;
+          } else if (rawCv > 10) {
+            status = "复孔CV%大于10%，建议检查";
+            hasWarn = true;
+          }
+
+          return {
+            name: sample.name,
+            dilution: sample.dilution,
+            n: sample.ods.length,
+            rawMean,
+            rawCv,
+            correctedOd,
+            dilutedConc,
+            originalConc,
+            status
+          };
+        });
+
+        const tableRows = rows.map((row) => [
+          escapeHtml(row.name),
+          fmtInt(row.n),
+          fmtFixed(row.dilution, 3),
+          fmtFixed(row.rawMean, 4),
+          fmtFixed(row.rawCv, 2),
+          fmtFixed(row.correctedOd, 4),
+          fmtFixed(row.dilutedConc, 4),
+          fmtFixed(row.originalConc, 4),
+          escapeHtml(row.status)
+        ]);
+
+        const html = `
+          <p class="result-title">BCA 计算结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmt(blankMean, 4)}</strong><span>平均空孔 OD</span></div>
+            <div class="metric"><strong>y = ${fmt(slope, 4)}x + ${fmt(intercept, 4)}</strong><span>当前标准曲线</span></div>
+          </div>
+          ${table(["样本", "复孔数", "稀释倍数", "平均OD", "CV%", "扣空孔后OD", "稀释后浓度 µg/µL", "原液浓度 µg/µL", "判断"], tableRows)}
+        `;
+
+        setResult("bca-result", html, hasWarn ? "warn" : "ok");
+        return { ok: !hasWarn, rows };
+      }
+
+      function calculateWB(bcaRows) {
+        const finalLaneVol = getNumber("wb-final-lane-vol");
+        const loadingX = getNumber("wb-loading-x");
+        const targetText = $("wb-target-protein").value.trim();
+        const targetProtein = targetText === "" ? NaN : parseFloat(targetText);
+        const validRows = bcaRows.filter((row) => isFinite(row.originalConc) && row.originalConc > 0);
+
+        if (!validRows.length || !isFinite(finalLaneVol) || finalLaneVol <= 0 || !isFinite(loadingX) || loadingX <= 1) {
+          setResult("wb-result", "<p class=\"result-title\">WB 参数不完整，或没有可用的蛋白浓度。</p>", "danger");
+          return false;
+        }
+
+        const proteinFractionAfterBoil = (loadingX - 1) / loadingX;
+        const enrichedRows = bcaRows.map((row) => ({
+          ...row,
+          boiledConc: row.originalConc * proteinFractionAfterBoil
+        })).filter((row) => isFinite(row.boiledConc) && row.boiledConc > 0);
+
+        const autoProtein = Math.min(...enrichedRows.map((row) => row.boiledConc * finalLaneVol));
+        const useProtein = isFinite(targetProtein) && targetProtein > 0 ? targetProtein : autoProtein;
+        const mode = isFinite(targetProtein) && targetProtein > 0 ? "指定蛋白量模式" : "自动最大统一蛋白量模式";
+        let hasWarn = false;
+
+        const rows = bcaRows.map((row) => {
+          const boiledConc = row.originalConc * proteinFractionAfterBoil;
+          let boiledSampleVol = NaN;
+          let loading1xVol = NaN;
+          let status = "可上样";
+
+          if (!isFinite(boiledConc) || boiledConc <= 0) {
+            status = "无可用浓度";
+            hasWarn = true;
+          } else {
+            boiledSampleVol = useProtein / boiledConc;
+            loading1xVol = finalLaneVol - boiledSampleVol;
+            if (boiledSampleVol > finalLaneVol + 1e-9) {
+              status = "已煮样体积超过最终上样体积，需降低蛋白量或浓缩样本。";
+              hasWarn = true;
+            } else if (loading1xVol < -1e-9) {
+              status = "1× loading补足体积为负，需降低蛋白量或浓缩样本。";
+              hasWarn = true;
+            }
+          }
+
+          return [
+            escapeHtml(row.name),
+            fmtFixed(row.originalConc, 4),
+            fmtFixed(boiledConc, 4),
+            fmt(useProtein, 3),
+            fmtFixed(boiledSampleVol, 3),
+            fmtFixed(loading1xVol, 3),
+            fmt(finalLaneVol, 3),
+            escapeHtml(status)
+          ];
+        });
+
+        let html = `
+          <p class="result-title">已煮样 WB 上样量计算结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmt(useProtein, 3)} µg</strong><span>统一每泳道蛋白量</span></div>
+            <div class="metric"><strong>${fmt(finalLaneVol, 3)} µL</strong><span>每泳道最终体积</span></div>
+            <div class="metric"><strong>${fmt(loadingX, 2)}×</strong><span>煮样时 Loading buffer</span></div>
+            <div class="metric"><strong>${fmt(proteinFractionAfterBoil, 3)}</strong><span>蛋白原液占比</span></div>
+          </div>
+          <div class="small">模式：${escapeHtml(mode)}。如果指定蛋白量留空，统一蛋白量由最稀的已煮样决定。</div>
+          ${table(["样本", "原液浓度 µg/µL", "已煮样浓度 µg/µL", "统一蛋白量 µg", "取已煮样体积 µL", "1× loading补足 µL", "最终体积 µL", "判断"], rows)}
+        `;
+
+        if (isFinite(targetProtein) && targetProtein > autoProtein + 1e-9) {
+          html += `<div class="notice warn"><strong>提醒：</strong>你指定的 ${fmt(targetProtein, 3)} µg 高于当前所有已煮样都能满足的自动最大统一蛋白量 ${fmt(autoProtein, 3)} µg，表格中已标出需要调整的样本。</div>`;
+          hasWarn = true;
+        }
+
+        html += `
+          <div class="notice ok">
+            <strong>建议记录：</strong>
+            统一蛋白量 ${fmt(useProtein, 3)} µg/lane；每泳道最终体积 ${fmt(finalLaneVol, 3)} µL；上胶当天补足液为 1× loading buffer。
+          </div>
+        `;
+
+        setResult("wb-result", html, hasWarn ? "warn" : "ok");
+        return true;
+      }
+
+      function calculateBcaAll() {
+        const bca = calculateBCA();
+        calculateWB(bca.rows || []);
+      }
+
+      function fillBcaExample() {
+        $("bca-slope").value = "2.0352";
+        $("bca-intercept").value = "-0.4435";
+        $("bca-blanks").value = "0.050, 0.052, 0.051";
+        $("bca-samples").value = "Sample_1, 10, 0.850, 0.862, 0.855\nSample_2, 10, 0.730, 0.742, 0.736\nSample_3, 5, 0.910, 0.918, 0.906";
+        $("wb-final-lane-vol").value = "20";
+        $("wb-loading-x").value = "5";
+        $("wb-target-protein").value = "";
+        calculateBcaAll();
+      }
+
+      function activateTab(name, shouldUpdateHash) {
+        document.querySelectorAll(".tab-button").forEach((button) => {
+          const active = button.dataset.tab === name;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        document.querySelectorAll(".tool-panel").forEach((panel) => {
+          panel.classList.toggle("active", panel.dataset.panel === name);
+        });
+        if (shouldUpdateHash) {
+          history.replaceState(null, "", "#" + name);
+        }
+      }
+
+      function bindEvents() {
+        document.querySelectorAll(".tab-button").forEach((button) => {
+          button.addEventListener("click", () => activateTab(button.dataset.tab, true));
+        });
+
+        $("cell-calc").addEventListener("click", calculateCell);
+        $("cell-example").addEventListener("click", fillCellExample);
+        $("qpcr-calc").addEventListener("click", calculateQpcrAll);
+        $("qpcr-example").addEventListener("click", fillQpcrExample);
+        $("bca-calc").addEventListener("click", calculateBcaAll);
+        $("bca-example").addEventListener("click", fillBcaExample);
+      }
+
+      bindEvents();
+
+      const initialTab = (location.hash || "").replace("#", "");
+      if (["cell", "qpcr", "bca"].includes(initialTab)) {
+        activateTab(initialTab, false);
+      } else {
+        activateTab("cell", false);
+      }
+    })();
+  </script>
+</body>
+</html>
