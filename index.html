@@ -879,7 +879,22 @@ Gene_2</textarea>
           </div>
           <div>
             <label for="qpa-control-sample">对照样本</label>
-            <input id="qpa-control-sample" type="text" value="Control" />
+            <select id="qpa-control-sample">
+              <option value="Control">Control</option>
+            </select>
+            <div class="help">导入或粘贴数据后，会自动从“样本名”列生成可选样本。</div>
+          </div>
+          <div>
+            <label for="qpa-compare-mode">比较方式</label>
+            <select id="qpa-compare-mode">
+              <option value="single">单一对照：对照 vs 所有其他样本</option>
+              <option value="custom">自定义比较方案</option>
+            </select>
+          </div>
+          <div class="panel" style="grid-column: 1 / -1;">
+            <label for="qpa-comparisons">自定义比较方案</label>
+            <textarea id="qpa-comparisons" style="min-height:96px;" placeholder="每行一个比较：对照样本: 实验样本1, 实验样本2&#10;例如：Control: Treat_1, Treat_2"></textarea>
+            <div class="help">当选择“自定义比较方案”时生效。适合一批数据中分开做 Control_A vs Treat_A、Control_B vs Treat_B1/Treat_B2 等不同比较。</div>
           </div>
           <div>
             <label for="qpa-expected-reps">期望技术复孔数</label>
@@ -908,6 +923,12 @@ Gene_2</textarea>
         <div id="qpa-result" class="result" aria-live="polite"></div>
         <div id="qpa-chart-box" class="result" aria-live="polite">
           <p class="result-title">相对表达量柱状图</p>
+          <div class="grid">
+            <div>
+              <label for="qpa-chart-select">选择图表</label>
+              <select id="qpa-chart-select"></select>
+            </div>
+          </div>
           <div class="chart-wrap">
             <canvas id="qpa-chart" width="920" height="430"></canvas>
           </div>
@@ -1099,6 +1120,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
 
       const $ = (id) => document.getElementById(id);
       let qpaLastPrismCsv = "";
+      let qpaLastAnalyses = [];
 
       function escapeHtml(value) {
         return String(value)
@@ -1572,6 +1594,64 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         }).filter((row) => row.sample && row.gene && isFinite(row.ct) && !["true", "yes", "1"].includes(row.ignored));
       }
 
+      function qpaRefreshSampleOptions() {
+        const select = $("qpa-control-sample");
+        const previous = select.value;
+        try {
+          const rows = qpaParseTextTable($("qpa-data").value);
+          const samples = Array.from(new Set(rows.map((row) => row.sample).filter((sample) => sample && qpaNorm(sample) !== "20")));
+          if (!samples.length) return [];
+          select.innerHTML = samples.map((sample) => `<option value="${escapeHtml(sample)}">${escapeHtml(sample)}</option>`).join("");
+          if (samples.includes(previous)) {
+            select.value = previous;
+          } else if (samples.some((sample) => qpaNorm(sample) === "control")) {
+            select.value = samples.find((sample) => qpaNorm(sample) === "control");
+          } else {
+            select.value = samples[0];
+          }
+          return samples;
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function qpaScheduleSampleRefresh() {
+        clearTimeout(qpaScheduleSampleRefresh.timer);
+        qpaScheduleSampleRefresh.timer = setTimeout(qpaRefreshSampleOptions, 180);
+      }
+
+      function qpaParseComparisons(samples) {
+        const mode = $("qpa-compare-mode").value;
+        const byNorm = new Map(samples.map((sample) => [qpaNorm(sample), sample]));
+        if (mode !== "custom") {
+          const control = byNorm.get(qpaNorm($("qpa-control-sample").value)) || $("qpa-control-sample").value;
+          if (!byNorm.has(qpaNorm(control))) throw new Error("请先从样本名列选择一个有效的对照样本。");
+          return [{
+            label: `${control} vs others`,
+            control,
+            samples
+          }];
+        }
+        const lines = $("qpa-comparisons").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        if (!lines.length) throw new Error("请选择“单一对照”，或在自定义比较方案中至少填写一行。");
+        return lines.map((line) => {
+          const parts = line.split(/[:：]/);
+          if (parts.length < 2) throw new Error(`比较方案格式错误：${line}`);
+          const controlRaw = parts[0].trim();
+          const treatmentNames = parts.slice(1).join(":").split(/[,，;；]+/).map((x) => x.trim()).filter(Boolean);
+          const missing = [controlRaw, ...treatmentNames].filter((name) => !byNorm.has(qpaNorm(name)));
+          if (missing.length) throw new Error(`比较方案中没有在样本名列找到：${missing.join(", ")}`);
+          const control = byNorm.get(qpaNorm(controlRaw));
+          const treatments = treatmentNames.map((name) => byNorm.get(qpaNorm(name)));
+          if (!treatments.length) throw new Error(`比较方案缺少实验样本：${line}`);
+          return {
+            label: `${control} vs ${treatments.join(", ")}`,
+            control,
+            samples: [control, ...treatments]
+          };
+        });
+      }
+
       function qpaLogGamma(z) {
         const coeff = [676.5203681218851, -1259.1392167224028, 771.3234287776531, -176.6150291621406, 12.507343278686905, -0.13857109526572012, 9.984369578019572e-6, 1.5056327351493116e-7];
         if (z < 0.5) return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - qpaLogGamma(1 - z);
@@ -1666,15 +1746,16 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         return "ns";
       }
 
-      function qpaAnalyzeRows(rows, targetGene) {
+      function qpaAnalyzeRows(rows, targetGene, comparison) {
         const target = qpaNorm(targetGene);
         const ref = qpaNorm($("qpa-ref-gene").value);
-        const control = qpaNorm($("qpa-control-sample").value);
+        const control = qpaNorm(comparison.control);
         const expectedReps = parseInt($("qpa-expected-reps").value, 10);
         const sdThreshold = getNumber("qpa-ct-sd-threshold");
         const testMode = $("qpa-test-mode").value;
         const geneRows = rows.filter((row) => [target, ref].includes(qpaNorm(row.gene)));
-        const samples = Array.from(new Set(geneRows.map((row) => row.sample))).filter((sample) => qpaNorm(sample) !== "20");
+        const allowed = new Set(comparison.samples.map(qpaNorm));
+        const samples = Array.from(new Set(geneRows.map((row) => row.sample))).filter((sample) => qpaNorm(sample) !== "20" && allowed.has(qpaNorm(sample)));
         const bySample = new Map();
         samples.forEach((sample) => bySample.set(sample, { sample, targetRows: [], refRows: [] }));
         geneRows.forEach((row) => {
@@ -1727,7 +1808,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           if (!entry.refCts.length) entry.warnings.push("缺少内参基因 Ct");
         });
 
-        return { targetGene, summaries: summaries.filter((entry) => entry.pairN > 0), controlSummary };
+        return { targetGene, comparisonLabel: comparison.label, control: comparison.control, summaries: summaries.filter((entry) => entry.pairN > 0), controlSummary };
       }
 
       function qpaBuildPrismCsv(analyses) {
@@ -1736,7 +1817,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           const headers = analysis.summaries.map((entry) => entry.sample);
           const maxN = Math.max(...analysis.summaries.map((entry) => entry.rqReps.length));
           const lines = [];
-          lines.push([`Target: ${analysis.targetGene}`]);
+          lines.push([`Target: ${analysis.targetGene}; ${analysis.comparisonLabel}`]);
           lines.push(headers);
           for (let i = 0; i < maxN; i += 1) {
             lines.push(analysis.summaries.map((entry) => isFinite(entry.rqReps[i]) ? entry.rqReps[i] : ""));
@@ -1821,7 +1902,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         ctx.textAlign = "center";
         ctx.font = "700 18px Arial";
         ctx.fillStyle = "#172326";
-        ctx.fillText(`${analysis.targetGene} 相对表达量`, canvas.width / 2, 24);
+        ctx.fillText(`${analysis.targetGene} ${analysis.comparisonLabel}`, canvas.width / 2, 24);
         ctx.save();
         ctx.translate(20, canvas.height / 2);
         ctx.rotate(-Math.PI / 2);
@@ -1849,12 +1930,14 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
             escapeHtml(entry.warnings.join("；") || "OK")
           ]);
           return `
-            <div class="section-title">${escapeHtml(analysis.targetGene)}</div>
+            <div class="section-title">${escapeHtml(analysis.targetGene)} · ${escapeHtml(analysis.comparisonLabel)}</div>
             ${table(["样本", "目标Ct均值", "目标Ct SD", "内参Ct均值", "内参Ct SD", "ΔCt均值", "ΔΔCt均值", "2^-ΔΔCt均值", "SD", "SEM", "P值", "显著性", "QC"], summaryRows)}
           `;
         }).join("");
 
         const totalWarnings = analyses.flatMap((analysis) => analysis.summaries.flatMap((entry) => entry.warnings));
+        qpaLastAnalyses = analyses;
+        qpaPopulateChartSelect(analyses);
         qpaLastPrismCsv = qpaBuildPrismCsv(analyses);
         $("qpa-download").disabled = !qpaLastPrismCsv;
         result.style.display = "block";
@@ -1864,7 +1947,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           <div class="metric-grid">
             <div class="metric"><strong>${fmtInt(rows.length)}</strong><span>有效孔级 Ct 记录</span></div>
             <div class="metric"><strong>${fmtInt(new Set(rows.map((row) => row.sample)).size)}</strong><span>样本数</span></div>
-            <div class="metric"><strong>${fmtInt(analyses.length)}</strong><span>目标基因数</span></div>
+            <div class="metric"><strong>${fmtInt(analyses.length)}</strong><span>分析结果数</span></div>
           </div>
           ${targetBlocks}
           <div class="notice ${totalWarnings.length ? "warn" : "ok"}"><strong>QC：</strong>${totalWarnings.length ? escapeHtml(totalWarnings.slice(0, 8).join("；")) : "未发现明显复孔数量或 Ct SD 警告。"}</div>
@@ -1872,16 +1955,32 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         qpaDrawChart(analyses[0]);
       }
 
+      function qpaPopulateChartSelect(analyses) {
+        const select = $("qpa-chart-select");
+        select.innerHTML = analyses.map((analysis, index) => `<option value="${index}">${escapeHtml(analysis.targetGene)} · ${escapeHtml(analysis.comparisonLabel)}</option>`).join("");
+        select.disabled = analyses.length <= 1;
+        select.value = "0";
+      }
+
+      function qpaDrawSelectedChart() {
+        const index = parseInt($("qpa-chart-select").value, 10);
+        if (qpaLastAnalyses[index]) qpaDrawChart(qpaLastAnalyses[index]);
+      }
+
       function analyzeQpcrData() {
         try {
           const rows = qpaParseTextTable($("qpa-data").value);
+          const samples = qpaRefreshSampleOptions();
           const targetGenes = $("qpa-target-gene").value.split(/[,，;；\s]+/).map((x) => x.trim()).filter(Boolean);
           if (!rows.length) throw new Error("没有可用 Ct 数据。");
           if (!targetGenes.length) throw new Error("请填写至少一个目标基因。");
-          const analyses = targetGenes.map((gene) => qpaAnalyzeRows(rows, gene));
+          if (!samples.length) throw new Error("没有从样本名列识别到可用样本。");
+          const comparisons = qpaParseComparisons(samples);
+          const analyses = targetGenes.flatMap((gene) => comparisons.map((comparison) => qpaAnalyzeRows(rows, gene, comparison)));
           qpaRenderAnalyses(analyses, rows);
         } catch (error) {
           $("qpa-download").disabled = true;
+          qpaLastAnalyses = [];
           setResult("qpa-result", `<p class="result-title">qPCR 数据分析失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
           $("qpa-chart-box").style.display = "none";
         }
@@ -1890,7 +1989,6 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       function fillQpcrAnalysisExample() {
         $("qpa-target-gene").value = "GeneA";
         $("qpa-ref-gene").value = "ACTB";
-        $("qpa-control-sample").value = "Control";
         $("qpa-expected-reps").value = "3";
         $("qpa-ct-sd-threshold").value = "0.3";
         $("qpa-data").value = qpaRowsToTsv([
@@ -1915,6 +2013,10 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           ["Treat_2", "ACTB", 18.36, "Amp", 87.2]
         ]);
         $("qpa-file-status").textContent = "已填入通用示例数据。";
+        qpaRefreshSampleOptions();
+        $("qpa-control-sample").value = "Control";
+        $("qpa-compare-mode").value = "custom";
+        $("qpa-comparisons").value = "Control: Treat_1\nControl: Treat_2";
         analyzeQpcrData();
       }
 
@@ -2024,10 +2126,14 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
             const headerRow = qpaFindHeaderRow(parsed.rows);
             if (headerRow < 0) throw new Error("没有在 xlsx 中找到孔级结果表头。");
             $("qpa-data").value = qpaRowsToTsv(parsed.rows.slice(headerRow));
+            const samples = qpaRefreshSampleOptions();
             $("qpa-file-status").textContent = `已读取 ${file.name} 的“${parsed.sheetName}”表。`;
+            if (samples.length) $("qpa-file-status").textContent += ` 已识别 ${samples.length} 个样本。`;
           } else {
             $("qpa-data").value = await file.text();
+            const samples = qpaRefreshSampleOptions();
             $("qpa-file-status").textContent = `已读取 ${file.name}。`;
+            if (samples.length) $("qpa-file-status").textContent += ` 已识别 ${samples.length} 个样本。`;
           }
         } catch (error) {
           $("qpa-file-status").textContent = error.message;
@@ -2364,8 +2470,10 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("qpa-file").addEventListener("change", handleQpcrAnalysisFile);
+        $("qpa-data").addEventListener("input", qpaScheduleSampleRefresh);
         $("qpa-analyze").addEventListener("click", analyzeQpcrData);
         $("qpa-example").addEventListener("click", fillQpcrAnalysisExample);
+        $("qpa-chart-select").addEventListener("change", qpaDrawSelectedChart);
         $("qpa-download").addEventListener("click", downloadQpcrPrismCsv);
         $("bca-calc").addEventListener("click", calculateBcaAll);
         $("bca-example").addEventListener("click", fillBcaExample);
