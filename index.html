@@ -260,6 +260,64 @@
       box-shadow: inset -3px -2px 0 #9fb9cb, 0 0 12px rgba(219, 238, 255, 0.58);
     }
 
+    .music-player {
+      width: 100%;
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .music-toggle,
+    .music-file-label {
+      min-height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.84);
+      color: var(--text);
+      padding: 5px 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: background 520ms ease, color 520ms ease, border-color 520ms ease, transform 160ms ease;
+    }
+
+    .music-toggle:hover,
+    .music-toggle:focus-visible,
+    .music-file-label:hover,
+    .music-file-label:focus-visible {
+      transform: translateY(-1px);
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .music-file {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .music-status {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    body.theme-night .music-toggle,
+    body.theme-night .music-file-label {
+      border-color: rgba(83, 194, 185, 0.36);
+      background: rgba(18, 31, 34, 0.88);
+      color: #edf8f6;
+    }
+
     .mascot-card {
       width: 132px;
       height: 104px;
@@ -856,7 +914,8 @@
       .tabs,
       .actions,
       .status-chip,
-      .theme-toggle {
+      .theme-toggle,
+      .music-player {
         display: none;
       }
 
@@ -889,6 +948,13 @@
             <span class="theme-orbit" aria-hidden="true"><span class="theme-dot"></span></span>
             <span id="theme-toggle-text">白天</span>
           </button>
+          <div class="music-player" aria-label="本地音乐播放器">
+            <button class="music-toggle" type="button" id="music-toggle" aria-pressed="false">播放 Dead Man</button>
+            <label class="music-file-label" for="music-file">选择音频</label>
+            <input class="music-file" id="music-file" type="file" accept="audio/*" />
+            <div class="music-status" id="music-status">未播放</div>
+            <audio id="bg-audio" preload="none"></audio>
+          </div>
         </div>
         <div class="mascot-card" aria-label="IKUN 多帧待机动画">
           <span class="mascot-sprite" role="img" aria-label="白发黑衣像素风 IKUN 宠物正在眨眼"></span>
@@ -1471,6 +1537,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       const $ = (id) => document.getElementById(id);
       let qpaLastPrismCsv = "";
       let qpaLastAnalyses = [];
+      let musicObjectUrl = "";
       const themeKey = "w2g-calculator-theme";
 
       function storedTheme() {
@@ -1511,6 +1578,64 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
 
       function toggleTheme() {
         applyTheme(document.body.classList.contains("theme-night") ? "day" : "night", true);
+      }
+
+      function setMusicStatus(text) {
+        const status = $("music-status");
+        if (status) status.textContent = text;
+      }
+
+      function setMusicPlaying(playing) {
+        const button = $("music-toggle");
+        if (!button) return;
+        button.textContent = playing ? "暂停 Dead Man" : "播放 Dead Man";
+        button.setAttribute("aria-pressed", playing ? "true" : "false");
+      }
+
+      function ensureDefaultMusic() {
+        const audio = $("bg-audio");
+        if (!audio.src) {
+          audio.src = "dead-man.mp3";
+          audio.dataset.source = "default";
+          audio.loop = true;
+          audio.volume = 0.45;
+        }
+        return audio;
+      }
+
+      async function toggleMusic() {
+        const audio = ensureDefaultMusic();
+        if (!audio.paused) {
+          audio.pause();
+          setMusicPlaying(false);
+          setMusicStatus("已暂停");
+          return;
+        }
+
+        try {
+          await audio.play();
+          setMusicPlaying(true);
+          setMusicStatus(audio.dataset.source === "local" ? "正在播放本地音频" : "正在尝试播放 dead-man.mp3");
+        } catch (error) {
+          setMusicPlaying(false);
+          setMusicStatus("未找到可播放音频，请选择本地文件");
+        }
+      }
+
+      function handleMusicFile() {
+        const input = $("music-file");
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const audio = $("bg-audio");
+        audio.pause();
+        if (musicObjectUrl) URL.revokeObjectURL(musicObjectUrl);
+        musicObjectUrl = URL.createObjectURL(file);
+        audio.src = musicObjectUrl;
+        audio.dataset.source = "local";
+        audio.loop = true;
+        audio.volume = 0.45;
+        setMusicPlaying(false);
+        setMusicStatus(`已选择：${file.name}`);
       }
 
       function escapeHtml(value) {
@@ -3205,6 +3330,12 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         });
 
         $("theme-toggle").addEventListener("click", toggleTheme);
+        $("music-toggle").addEventListener("click", toggleMusic);
+        $("music-file").addEventListener("change", handleMusicFile);
+        $("bg-audio").addEventListener("error", () => {
+          setMusicPlaying(false);
+          setMusicStatus("未找到 dead-man.mp3，可选择本地音频");
+        });
         $("cell-calc").addEventListener("click", calculateCell);
         $("cell-example").addEventListener("click", fillCellExample);
         $("seed-plate").addEventListener("change", handleSeedPlateChange);
