@@ -379,6 +379,55 @@
       background: #2f444d;
     }
 
+    button.action.small {
+      min-height: 38px;
+      padding: 8px 12px;
+      font-size: 14px;
+      box-shadow: 0 8px 16px rgba(46, 68, 74, 0.12);
+    }
+
+    .comparison-builder {
+      display: grid;
+      gap: 12px;
+    }
+
+    .comparison-row {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.78);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: minmax(170px, 0.7fr) minmax(0, 1.3fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .sample-checks {
+      min-height: var(--field-h);
+      border: 1px solid #afbfbb;
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 9px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+    }
+
+    .sample-check {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0;
+      font-weight: 700;
+      color: #22343a;
+    }
+
+    .sample-check input {
+      width: auto;
+      min-height: 0;
+      box-shadow: none;
+    }
+
     .result {
       display: none;
       margin-top: 18px;
@@ -600,6 +649,10 @@
       .tabs {
         grid-template-columns: 1fr;
         position: static;
+      }
+
+      .comparison-row {
+        grid-template-columns: 1fr;
       }
 
       .quick-note {
@@ -892,10 +945,16 @@ Gene_2</textarea>
               <option value="custom">自定义比较方案</option>
             </select>
           </div>
-          <div class="panel" style="grid-column: 1 / -1;">
-            <label for="qpa-comparisons">自定义比较方案</label>
-            <textarea id="qpa-comparisons" style="min-height:96px;" placeholder="每行一个比较：对照样本: 实验样本1, 实验样本2&#10;例如：Control: Treat_1, Treat_2"></textarea>
-            <div class="help">当选择“自定义比较方案”时生效。适合一批数据中分开做 Control_A vs Treat_A、Control_B vs Treat_B1/Treat_B2 等不同比较。</div>
+          <div id="qpa-custom-panel" class="panel" style="grid-column: 1 / -1; display: none;">
+            <label>自定义比较方案</label>
+            <div id="qpa-custom-builder" class="comparison-builder">
+              <div id="qpa-custom-rows"></div>
+              <div class="actions" style="margin-top: 0;">
+                <button class="action secondary small" type="button" id="qpa-add-comparison">新增一组比较</button>
+              </div>
+              <textarea id="qpa-comparisons" hidden></textarea>
+            </div>
+            <div class="help">每行选择一个对照样本，再勾选要比较的实验组；一行可生成一张多组柱状图，想分开出图就新增一行。</div>
           </div>
           <div>
             <label for="qpa-expected-reps">期望技术复孔数</label>
@@ -1633,6 +1692,113 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         }
       }
 
+      function qpaCurrentSamples() {
+        return qpaRefreshSampleOptions.last?.samples || [];
+      }
+
+      function qpaDefaultComparisonPlans(samples) {
+        const selected = $("qpa-control-sample").value;
+        const control = samples.find((sample) => qpaNorm(sample) === qpaNorm(selected)) || samples[0] || "";
+        return control ? [{
+          control,
+          treatments: samples.filter((sample) => qpaNorm(sample) !== qpaNorm(control))
+        }] : [];
+      }
+
+      function qpaReadCustomBuilderRaw() {
+        return Array.from(document.querySelectorAll("#qpa-custom-rows .qpa-comparison-row")).map((row) => {
+          const control = row.querySelector(".qpa-row-control")?.value || "";
+          const treatments = Array.from(row.querySelectorAll(".qpa-treatment:checked")).map((input) => input.value);
+          return { control, treatments };
+        }).filter((plan) => plan.control || plan.treatments.length);
+      }
+
+      function qpaCustomRowHtml(samples, plan, index) {
+        const control = samples.find((sample) => qpaNorm(sample) === qpaNorm(plan.control)) || samples[0] || "";
+        const treatmentSet = new Set((plan.treatments || []).map(qpaNorm));
+        const options = samples.map((sample) => `<option value="${escapeHtml(sample)}"${qpaNorm(sample) === qpaNorm(control) ? " selected" : ""}>${escapeHtml(sample)}</option>`).join("");
+        const checks = samples.filter((sample) => qpaNorm(sample) !== qpaNorm(control)).map((sample) => {
+          const checked = treatmentSet.has(qpaNorm(sample)) || (!(plan.treatments || []).length && qpaNorm(sample) !== qpaNorm(control));
+          return `
+            <label class="sample-check">
+              <input class="qpa-treatment" type="checkbox" value="${escapeHtml(sample)}"${checked ? " checked" : ""} />
+              <span>${escapeHtml(sample)}</span>
+            </label>
+          `;
+        }).join("") || `<div class="help">需要至少两个样本才能选择实验组。</div>`;
+        return `
+          <div class="comparison-row" data-index="${index}">
+            <div>
+              <label for="qpa-row-control-${index}">对照</label>
+              <select id="qpa-row-control-${index}" class="qpa-row-control">${options}</select>
+            </div>
+            <div>
+              <label>实验组</label>
+              <div class="sample-checks">${checks}</div>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button class="action secondary small qpa-remove-comparison" type="button">删除</button>
+            </div>
+          </div>
+        `;
+      }
+
+      function qpaSyncComparisonsText() {
+        const lines = qpaReadCustomBuilderRaw().map((plan) => `${plan.control}: ${plan.treatments.join(", ")}`);
+        $("qpa-comparisons").value = lines.join("\n");
+      }
+
+      function qpaRenderCustomBuilder(samples, plans) {
+        const rows = $("qpa-custom-rows");
+        if (!samples.length) {
+          rows.innerHTML = `<div class="help">导入或粘贴数据后，会在这里生成样本选择。</div>`;
+          $("qpa-comparisons").value = "";
+          return;
+        }
+        const rawPlans = Array.isArray(plans) ? plans : qpaReadCustomBuilderRaw();
+        const validPlans = rawPlans.map((plan) => ({
+          control: samples.find((sample) => qpaNorm(sample) === qpaNorm(plan.control)) || "",
+          treatments: (plan.treatments || []).filter((name) => samples.some((sample) => qpaNorm(sample) === qpaNorm(name)))
+        })).filter((plan) => plan.control);
+        const finalPlans = validPlans.length ? validPlans : qpaDefaultComparisonPlans(samples);
+        rows.innerHTML = finalPlans.map((plan, index) => qpaCustomRowHtml(samples, plan, index)).join("");
+        qpaSyncComparisonsText();
+      }
+
+      function qpaUpdateCompareModeUi() {
+        const custom = $("qpa-compare-mode").value === "custom";
+        $("qpa-custom-panel").style.display = custom ? "block" : "none";
+        if (custom) qpaRenderCustomBuilder(qpaCurrentSamples());
+      }
+
+      function qpaAddComparisonRow() {
+        const samples = qpaCurrentSamples();
+        const plans = qpaReadCustomBuilderRaw();
+        plans.push(qpaDefaultComparisonPlans(samples)[0] || { control: "", treatments: [] });
+        qpaRenderCustomBuilder(samples, plans);
+      }
+
+      function qpaHandleCustomRowsClick(event) {
+        const button = event.target.closest(".qpa-remove-comparison");
+        if (!button) return;
+        const row = button.closest(".comparison-row");
+        const index = parseInt(row?.dataset.index || "-1", 10);
+        const samples = qpaCurrentSamples();
+        const plans = qpaReadCustomBuilderRaw().filter((_, planIndex) => planIndex !== index);
+        qpaRenderCustomBuilder(samples, plans.length ? plans : qpaDefaultComparisonPlans(samples));
+      }
+
+      function qpaHandleCustomRowsChange(event) {
+        if (event.target.classList.contains("qpa-row-control")) {
+          qpaRenderCustomBuilder(qpaCurrentSamples(), qpaReadCustomBuilderRaw());
+          return;
+        }
+        if (event.target.classList.contains("qpa-treatment")) {
+          qpaSyncComparisonsText();
+        }
+      }
+
       function qpaRefreshSampleOptions() {
         const select = $("qpa-control-sample");
         const previous = select.value;
@@ -1651,9 +1817,11 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           } else {
             select.value = samples[0];
           }
+          qpaRenderCustomBuilder(samples);
           return samples;
         } catch (error) {
           qpaRefreshSampleOptions.last = { samples: [], genes: [] };
+          qpaRenderCustomBuilder([]);
           return [];
         }
       }
@@ -1675,22 +1843,18 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
             samples
           }];
         }
-        const lines = $("qpa-comparisons").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-        if (!lines.length) throw new Error("请选择“单一对照”，或在自定义比较方案中至少填写一行。");
-        return lines.map((line) => {
-          const parts = line.split(/[:：]/);
-          if (parts.length < 2) throw new Error(`比较方案格式错误：${line}`);
-          const controlRaw = parts[0].trim();
-          const treatmentNames = parts.slice(1).join(":").split(/[,，;；]+/).map((x) => x.trim()).filter(Boolean);
-          const missing = [controlRaw, ...treatmentNames].filter((name) => !byNorm.has(qpaNorm(name)));
-          if (missing.length) throw new Error(`比较方案中没有在样本名列找到：${missing.join(", ")}`);
-          const control = byNorm.get(qpaNorm(controlRaw));
-          const treatments = treatmentNames.map((name) => byNorm.get(qpaNorm(name)));
-          if (!treatments.length) throw new Error(`比较方案缺少实验样本：${line}`);
+        const plans = qpaReadCustomBuilderRaw();
+        if (!plans.length) throw new Error("请在自定义比较方案中至少新增一行比较。");
+        return plans.map((plan, index) => {
+          const control = byNorm.get(qpaNorm(plan.control));
+          if (!control) throw new Error(`第 ${index + 1} 行没有选择有效的对照样本。`);
+          const treatments = plan.treatments.map((name) => byNorm.get(qpaNorm(name))).filter(Boolean).filter((name) => qpaNorm(name) !== qpaNorm(control));
+          const uniqueTreatments = Array.from(new Map(treatments.map((name) => [qpaNorm(name), name])).values());
+          if (!uniqueTreatments.length) throw new Error(`第 ${index + 1} 行请至少勾选一个实验组。`);
           return {
-            label: `${control} vs ${treatments.join(", ")}`,
+            label: `${control} vs ${uniqueTreatments.join(", ")}`,
             control,
-            samples: [control, ...treatments]
+            samples: [control, ...uniqueTreatments]
           };
         });
       }
@@ -2067,7 +2231,11 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         qpaRefreshSampleOptions();
         $("qpa-control-sample").value = "Control";
         $("qpa-compare-mode").value = "custom";
-        $("qpa-comparisons").value = "Control: Treat_1\nControl: Treat_2";
+        qpaUpdateCompareModeUi();
+        qpaRenderCustomBuilder(qpaCurrentSamples(), [
+          { control: "Control", treatments: ["Treat_1"] },
+          { control: "Control", treatments: ["Treat_2"] }
+        ]);
         analyzeQpcrData();
       }
 
@@ -2526,6 +2694,13 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("qpa-file").addEventListener("change", handleQpcrAnalysisFile);
         $("qpa-data").addEventListener("input", qpaScheduleSampleRefresh);
+        $("qpa-control-sample").addEventListener("change", () => {
+          if ($("qpa-compare-mode").value !== "custom") qpaRenderCustomBuilder(qpaCurrentSamples(), qpaDefaultComparisonPlans(qpaCurrentSamples()));
+        });
+        $("qpa-compare-mode").addEventListener("change", qpaUpdateCompareModeUi);
+        $("qpa-add-comparison").addEventListener("click", qpaAddComparisonRow);
+        $("qpa-custom-rows").addEventListener("click", qpaHandleCustomRowsClick);
+        $("qpa-custom-rows").addEventListener("change", qpaHandleCustomRowsChange);
         $("qpa-analyze").addEventListener("click", analyzeQpcrData);
         $("qpa-example").addEventListener("click", fillQpcrAnalysisExample);
         $("qpa-chart-select").addEventListener("change", qpaDrawSelectedChart);
@@ -2537,6 +2712,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       }
 
       bindEvents();
+      qpaUpdateCompareModeUi();
 
       const initialTab = (location.hash || "").replace("#", "");
       if (["cell", "qpcr", "qpcrdata", "bca", "virus"].includes(initialTab)) {
