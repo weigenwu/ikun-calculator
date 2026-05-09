@@ -3,6 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#08766d" />
+  <meta name="application-name" content="外实东区计算器" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="外实东区计算器" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="msapplication-TileColor" content="#08766d" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <title>外实东区计算器</title>
   <style>
     :root {
@@ -316,6 +325,38 @@
       border-color: rgba(83, 194, 185, 0.36);
       background: rgba(18, 31, 34, 0.88);
       color: #edf8f6;
+    }
+
+    .install-toggle {
+      width: 100%;
+      min-height: 32px;
+      margin-top: 8px;
+      border: 1px solid rgba(8, 118, 109, 0.28);
+      border-radius: 999px;
+      background: var(--accent);
+      color: #ffffff;
+      padding: 5px 12px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(8, 118, 109, 0.18);
+      transition: background 520ms ease, border-color 520ms ease, transform 160ms ease, box-shadow 520ms ease;
+    }
+
+    .install-toggle:hover,
+    .install-toggle:focus-visible {
+      transform: translateY(-1px);
+      outline: none;
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
+      box-shadow: 0 10px 22px rgba(8, 118, 109, 0.24);
+    }
+
+    body.theme-night .install-toggle {
+      background: #53c2b9;
+      border-color: rgba(83, 194, 185, 0.52);
+      color: #06171a;
     }
 
     .mascot-card {
@@ -915,7 +956,8 @@
       .actions,
       .status-chip,
       .theme-toggle,
-      .music-player {
+      .music-player,
+      .install-toggle {
         display: none;
       }
 
@@ -955,6 +997,7 @@
             <div class="music-status" id="music-status">未播放</div>
             <audio id="bg-audio" preload="none"></audio>
           </div>
+          <button class="install-toggle" type="button" id="app-install" hidden>安装 App</button>
         </div>
         <div class="mascot-card" aria-label="IKUN 多帧待机动画">
           <span class="mascot-sprite" role="img" aria-label="白发黑衣像素风 IKUN 宠物正在眨眼"></span>
@@ -1538,6 +1581,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       let qpaLastPrismCsv = "";
       let qpaLastAnalyses = [];
       let musicObjectUrl = "";
+      let deferredInstallPrompt = null;
       const themeKey = "w2g-calculator-theme";
 
       function storedTheme() {
@@ -1636,6 +1680,60 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         audio.volume = 0.45;
         setMusicPlaying(false);
         setMusicStatus(`已选择：${file.name}`);
+      }
+
+      function isInstalledAppMode() {
+        return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      }
+
+      function setInstallButtonVisible(visible) {
+        const button = $("app-install");
+        if (!button) return;
+        button.hidden = !visible;
+      }
+
+      async function promptAppInstall() {
+        const button = $("app-install");
+        if (!deferredInstallPrompt) {
+          if (button) {
+            button.textContent = "从浏览器菜单安装";
+            window.setTimeout(() => {
+              if (!deferredInstallPrompt && button) button.textContent = "安装 App";
+            }, 1800);
+          }
+          return;
+        }
+        deferredInstallPrompt.prompt();
+        try {
+          await deferredInstallPrompt.userChoice;
+        } catch (error) {
+          // Some browsers do not expose the choice result; the prompt itself is enough.
+        }
+        deferredInstallPrompt = null;
+        setInstallButtonVisible(false);
+      }
+
+      function setupAppInstall() {
+        if (isInstalledAppMode()) {
+          setInstallButtonVisible(false);
+          return;
+        }
+        window.addEventListener("beforeinstallprompt", (event) => {
+          event.preventDefault();
+          deferredInstallPrompt = event;
+          setInstallButtonVisible(true);
+        });
+        window.addEventListener("appinstalled", () => {
+          deferredInstallPrompt = null;
+          setInstallButtonVisible(false);
+        });
+      }
+
+      function registerServiceWorker() {
+        if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js").catch(() => {});
+        });
       }
 
       function escapeHtml(value) {
@@ -3336,6 +3434,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           setMusicPlaying(false);
           setMusicStatus("未找到 dead-man.mp3，可选择本地音频");
         });
+        $("app-install").addEventListener("click", promptAppInstall);
         $("cell-calc").addEventListener("click", calculateCell);
         $("cell-example").addEventListener("click", fillCellExample);
         $("seed-plate").addEventListener("change", handleSeedPlateChange);
@@ -3365,6 +3464,8 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       }
 
       applyTheme(preferredTheme(), false);
+      setupAppInstall();
+      registerServiceWorker();
       bindEvents();
       qpaUpdateCompareModeUi();
 
