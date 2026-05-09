@@ -853,6 +853,11 @@
       background: var(--accent-soft);
     }
 
+    .plate-cell.primary {
+      outline: 2px solid var(--accent-strong);
+      outline-offset: 1px;
+    }
+
     .plate-cell.empty {
       color: var(--muted);
       background: var(--surface-soft);
@@ -1672,11 +1677,11 @@ Primer_2</textarea>
 
         <h3>二、孔板布局编辑器</h3>
         <div class="panel">
-          <div class="help">导入或粘贴数据后，这里会显示 96 孔板排板。点任意孔可以修改样本名、基因名、Ct 和 QC 状态；计算时会按这个布局配对目标基因和内参。</div>
+          <div class="help">导入或粘贴数据后，这里会显示 96 孔板排板。点任意孔可以修改样本名、基因名、Ct 和 QC 状态；按住 Ctrl/⌘ 可多选孔并批量定义样本、基因和 QC 状态。</div>
           <div class="actions" style="margin-top: 10px;">
             <button class="action secondary" type="button" id="qme-render-plate">刷新孔板布局</button>
-            <button class="action secondary" type="button" id="qme-apply-well">保存当前孔修改</button>
-            <button class="action secondary" type="button" id="qme-clear-well">清空当前孔</button>
+            <button class="action secondary" type="button" id="qme-apply-well">保存选中孔修改</button>
+            <button class="action secondary" type="button" id="qme-clear-well">清空选中孔</button>
           </div>
           <div class="plate-editor">
             <div class="plate-grid-wrap">
@@ -1685,18 +1690,25 @@ Primer_2</textarea>
               </div>
             </div>
             <div class="well-editor">
+              <div class="notice ok" id="qme-selection-status" style="margin-top:0;">当前孔：A1</div>
               <div class="grid">
                 <div>
                   <label for="qme-edit-well">当前孔位</label>
-                  <input id="qme-edit-well" type="text" value="A1" />
+                  <select id="qme-edit-well">
+                    <option value="A1">A1</option>
+                  </select>
                 </div>
                 <div>
                   <label for="qme-edit-sample">样本名</label>
-                  <input id="qme-edit-sample" type="text" placeholder="例如 Control" />
+                  <select id="qme-edit-sample">
+                    <option value="">先导入数据</option>
+                  </select>
                 </div>
                 <div>
                   <label for="qme-edit-gene">基因名称</label>
-                  <input id="qme-edit-gene" type="text" placeholder="例如 GeneA 或 ACTB" />
+                  <select id="qme-edit-gene">
+                    <option value="">先导入数据</option>
+                  </select>
                 </div>
                 <div>
                   <label for="qme-edit-ct">Ct / Cт</label>
@@ -1704,7 +1716,12 @@ Primer_2</textarea>
                 </div>
                 <div>
                   <label for="qme-edit-amp">扩增状态</label>
-                  <input id="qme-edit-amp" type="text" value="Amp" />
+                  <select id="qme-edit-amp">
+                    <option value="Amp">Amp</option>
+                    <option value="Inconclusive">Inconclusive</option>
+                    <option value="No Amp">No Amp</option>
+                    <option value="Undetermined">Undetermined</option>
+                  </select>
                 </div>
                 <div>
                   <label for="qme-edit-highsd">HIGHSD</label>
@@ -1976,6 +1993,8 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       let mmLastCsv = "";
       let qmeLastSummaryCsv = "";
       let qmeLastPrismCsv = "";
+      let qmePrimaryWell = "A1";
+      let qmeSelectedWells = new Set(["A1"]);
       let musicObjectUrl = "";
       let deferredInstallPrompt = null;
       const themeKey = "w2g-calculator-theme";
@@ -3780,6 +3799,26 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         return meta ? meta.rowIndex * 12 + meta.col : 9999;
       }
 
+      function qmeSelectedWellList() {
+        return Array.from(qmeSelectedWells)
+          .map((well) => qmeWellMeta(well)?.key)
+          .filter(Boolean)
+          .sort((a, b) => qmeWellSortValue(a) - qmeWellSortValue(b));
+      }
+
+      function qmeUpdateSelectionStatus() {
+        const list = qmeSelectedWellList();
+        const status = $("qme-selection-status");
+        if (!status) return;
+        if (list.length > 1) {
+          status.className = "notice warn";
+          status.innerHTML = `<strong>已多选 ${list.length} 个孔：</strong>${escapeHtml(list.join(", "))}<div class="help">批量保存会应用样本、基因、扩增状态、HIGHSD 和忽略状态；Ct 会保留每个孔原值。</div>`;
+        } else {
+          status.className = "notice ok";
+          status.textContent = `当前孔：${list[0] || qmePrimaryWell}`;
+        }
+      }
+
       function qmeRowsToEditableTsv(rows) {
         const cleanRows = rows
           .filter((row) => qmeWellMeta(row.well))
@@ -3809,15 +3848,61 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         return map;
       }
 
+      function qmeAllWellKeys() {
+        const wells = [];
+        for (let rowIndex = 0; rowIndex < 8; rowIndex += 1) {
+          const row = String.fromCharCode(65 + rowIndex);
+          for (let col = 1; col <= 12; col += 1) wells.push(`${row}${col}`);
+        }
+        return wells;
+      }
+
+      function qmeUniqueValues(values) {
+        const seen = new Set();
+        return values.map((value) => String(value || "").trim()).filter((value) => {
+          const key = qpaNorm(value);
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      function qmeSetSelectOptions(id, values, selected, emptyLabel) {
+        const select = $(id);
+        if (!select) return;
+        const clean = qmeUniqueValues(values);
+        const selectedValue = String(selected || select.value || "").trim();
+        if (selectedValue && !clean.some((value) => qpaNorm(value) === qpaNorm(selectedValue))) clean.unshift(selectedValue);
+        const empty = emptyLabel ? [`<option value="">${escapeHtml(emptyLabel)}</option>`] : [];
+        select.innerHTML = empty.concat(clean.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)).join("");
+        if (selectedValue && clean.some((value) => qpaNorm(value) === qpaNorm(selectedValue))) {
+          select.value = clean.find((value) => qpaNorm(value) === qpaNorm(selectedValue));
+        } else if (!emptyLabel && clean.length) {
+          select.value = clean[0];
+        } else {
+          select.value = "";
+        }
+      }
+
+      function qmeRefreshEditorChoices(samples, genes, rows) {
+        qmeSetSelectOptions("qme-edit-well", qmeAllWellKeys(), $("qme-edit-well").value || "A1");
+        qmeSetSelectOptions("qme-edit-sample", samples, $("qme-edit-sample").value, samples.length ? "选择样本" : "先导入数据");
+        qmeSetSelectOptions("qme-edit-gene", genes, $("qme-edit-gene").value, genes.length ? "选择基因" : "先导入数据");
+        const ampValues = ["Amp", "Inconclusive", "No Amp", "Undetermined", ...qmeUniqueValues((rows || []).map((row) => row.amp))];
+        qmeSetSelectOptions("qme-edit-amp", ampValues, $("qme-edit-amp").value || "Amp");
+      }
+
       function qmeRenderPlate(selectedWell) {
         const grid = $("qme-plate-grid");
         if (!grid) return;
         const rows = qmeParseAllRows();
         if (!rows.length) {
           grid.innerHTML = `<div class="help">导入数据后显示孔板布局。</div>`;
+          qmeUpdateSelectionStatus();
           return;
         }
-        const selected = qmeWellMeta(selectedWell || $("qme-edit-well").value)?.key || "A1";
+        const selected = qmeWellMeta(selectedWell || qmePrimaryWell || $("qme-edit-well").value)?.key || "A1";
+        if (!qmeSelectedWells.size) qmeSelectedWells.add(selected);
         const byWell = qmeRowsByWell(rows);
         const refSet = new Set(qmeRefGenes().map(qpaNorm));
         const parts = [`<div class="plate-label"></div>`];
@@ -3832,7 +3917,8 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
             if (!entry) classes.push("empty");
             if (entry && refSet.has(qpaNorm(entry.gene))) classes.push("ref");
             if (entry && (qpaNorm(entry.highsd) === "y" || ["true", "yes", "1"].includes(qpaNorm(entry.ignored)))) classes.push("warn");
-            if (well === selected) classes.push("active");
+            if (qmeSelectedWells.has(well)) classes.push("active");
+            if (well === qmePrimaryWell) classes.push("primary");
             const body = entry
               ? `<strong>${escapeHtml(well)}</strong><span>${escapeHtml(entry.sample)}</span><small>${escapeHtml(entry.gene)} · Ct ${fmt(entry.ct, 2)}</small>`
               : `<strong>${escapeHtml(well)}</strong><small>空</small>`;
@@ -3840,13 +3926,17 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           }
         }
         grid.innerHTML = parts.join("");
+        qmeUpdateSelectionStatus();
       }
 
-      function qmeSelectWell(well) {
+      function qmeLoadWellEditor(well) {
         const meta = qmeWellMeta(well);
         if (!meta) return;
         const rows = qmeParseAllRows();
+        const samples = qpaUniqueNames(rows, "sample");
+        const genes = qpaUniqueNames(rows, "gene");
         const entry = rows.find((row) => qmeWellMeta(row.well)?.key === meta.key);
+        qmeRefreshEditorChoices(samples, genes, rows);
         $("qme-edit-well").value = meta.key;
         $("qme-edit-sample").value = entry?.sample || "";
         $("qme-edit-gene").value = entry?.gene || "";
@@ -3854,6 +3944,26 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("qme-edit-amp").value = entry?.amp || "Amp";
         $("qme-edit-highsd").value = qpaNorm(entry?.highsd) === "y" ? "Y" : "N";
         $("qme-edit-ignore").checked = ["true", "yes", "1"].includes(qpaNorm(entry?.ignored));
+      }
+
+      function qmeSelectWell(well, additive = false) {
+        const meta = qmeWellMeta(well);
+        if (!meta) return;
+        if (additive) {
+          if (qmeSelectedWells.has(meta.key) && qmeSelectedWells.size > 1) {
+            qmeSelectedWells.delete(meta.key);
+          } else {
+            qmeSelectedWells.add(meta.key);
+            qmePrimaryWell = meta.key;
+          }
+        } else {
+          qmeSelectedWells = new Set([meta.key]);
+          qmePrimaryWell = meta.key;
+        }
+        if (!qmeSelectedWells.has(qmePrimaryWell)) {
+          qmePrimaryWell = qmeSelectedWellList()[0] || meta.key;
+        }
+        qmeLoadWellEditor(qmePrimaryWell);
         qmeRenderPlate(meta.key);
       }
 
@@ -3863,33 +3973,52 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           setResult("qme-result", `<p class="result-title">孔位格式不正确</p><div class="notice danger">请填写 A1 到 H12 范围内的孔位。</div>`, "danger");
           return;
         }
-        const rows = qmeParseAllRows().filter((row) => qmeWellMeta(row.well)?.key !== meta.key);
-        const sample = $("qme-edit-sample").value.trim();
-        const gene = $("qme-edit-gene").value.trim();
-        const ct = parseFloat($("qme-edit-ct").value);
-        if (sample && gene && isFinite(ct)) {
+        if (!qmeSelectedWells.size) qmeSelectedWells.add(meta.key);
+        const selectedWells = qmeSelectedWellList();
+        const originalRows = qmeParseAllRows();
+        const originalByWell = qmeRowsByWell(originalRows);
+        const selectedSet = new Set(selectedWells);
+        const rows = originalRows.filter((row) => !selectedSet.has(qmeWellMeta(row.well)?.key));
+        const sample = $("qme-edit-sample").value;
+        const gene = $("qme-edit-gene").value;
+        const ctInput = parseFloat($("qme-edit-ct").value);
+        selectedWells.forEach((well) => {
+          const original = (originalByWell.get(well) || [])[0];
+          const ct = selectedWells.length > 1 && isFinite(original?.ct) ? original.ct : ctInput;
+          const nextSample = sample || original?.sample || "";
+          const nextGene = gene || original?.gene || "";
+          if (!nextSample || !nextGene || !isFinite(ct)) return;
           rows.push({
-            well: meta.key,
-            sample,
-            gene,
+            well,
+            sample: nextSample,
+            gene: nextGene,
             ct,
-            amp: $("qme-edit-amp").value.trim() || "Amp",
+            amp: $("qme-edit-amp").value || "Amp",
             highsd: $("qme-edit-highsd").value || "N",
             ignored: $("qme-edit-ignore").checked ? "true" : "false"
           });
-        }
+        });
         $("qme-data").value = qmeRowsToEditableTsv(rows);
         qmeRefreshOptions();
-        qmeSelectWell(meta.key);
+        qmeSelectedWells = new Set(selectedWells);
+        qmePrimaryWell = selectedWells.includes(qmePrimaryWell) ? qmePrimaryWell : selectedWells[0];
+        qmeLoadWellEditor(qmePrimaryWell);
+        qmeRenderPlate(qmePrimaryWell);
       }
 
       function qmeClearWellEdit() {
         const meta = qmeWellMeta($("qme-edit-well").value);
         if (!meta) return;
-        const rows = qmeParseAllRows().filter((row) => qmeWellMeta(row.well)?.key !== meta.key);
+        if (!qmeSelectedWells.size) qmeSelectedWells.add(meta.key);
+        const selectedWells = qmeSelectedWellList();
+        const selectedSet = new Set(selectedWells);
+        const rows = qmeParseAllRows().filter((row) => !selectedSet.has(qmeWellMeta(row.well)?.key));
         $("qme-data").value = qmeRowsToEditableTsv(rows);
         qmeRefreshOptions();
-        qmeSelectWell(meta.key);
+        qmeSelectedWells = new Set(selectedWells);
+        qmePrimaryWell = selectedWells[0] || meta.key;
+        qmeLoadWellEditor(qmePrimaryWell);
+        qmeRenderPlate(qmePrimaryWell);
       }
 
       function qmeRefreshOptions() {
@@ -3903,6 +4032,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           const genes = qpaUniqueNames(rows, "gene");
           qmeRefreshOptions.last = { rows, samples, genes };
           if (!samples.length || !genes.length) {
+            qmeRefreshEditorChoices(samples, genes, rows);
             qmeRenderPlate();
             return [];
           }
@@ -3934,11 +4064,13 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
               </label>
             `;
           }).join("") || `<div class="help">没有找到除内参外的目标基因，请检查内参设置。</div>`;
+          qmeRefreshEditorChoices(samples, genes, rows);
           qmeRenderPlate();
           return samples;
         } catch (error) {
           qmeRefreshOptions.last = { rows: [], samples: [], genes: [] };
           checks.innerHTML = `<div class="help">导入或粘贴数据后，会在这里生成目标基因选择。</div>`;
+          qmeRefreshEditorChoices([], [], []);
           qmeRenderPlate();
           return [];
         }
@@ -4645,8 +4777,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         });
         $("qme-plate-grid").addEventListener("click", (event) => {
           const cell = event.target.closest(".plate-cell");
-          if (cell?.dataset.well) qmeSelectWell(cell.dataset.well);
+          if (cell?.dataset.well) qmeSelectWell(cell.dataset.well, event.ctrlKey || event.metaKey);
         });
+        $("qme-edit-well").addEventListener("change", () => qmeSelectWell($("qme-edit-well").value));
         $("qme-apply-well").addEventListener("click", qmeApplyWellEdit);
         $("qme-clear-well").addEventListener("click", qmeClearWellEdit);
         $("qme-analyze").addEventListener("click", analyzeQpcrMulti);
