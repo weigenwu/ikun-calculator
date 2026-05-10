@@ -1200,6 +1200,7 @@
       <button class="tab-button" type="button" data-tab="viability" aria-controls="panel-viability">活性/ADCC</button>
       <button class="tab-button" type="button" data-tab="ic50" aria-controls="panel-ic50">IC50药敏</button>
       <button class="tab-button" type="button" data-tab="elisa" aria-controls="panel-elisa">ELISA</button>
+      <button class="tab-button" type="button" data-tab="flow" aria-controls="panel-flow">流式统计</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
       <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
       <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
@@ -1686,6 +1687,101 @@ Sample_3, 10, 0.485, 0.492, 0.489</textarea>
           <div><span class="formula">4PL：y = D + (A - D) / (1 + (x / C)^B)</span></div>
           <div><span class="formula">原样浓度 = 板上浓度 × 稀释倍数</span></div>
           <div class="help">网页内置的是轻量 4PL 数值拟合，适合快速处理和预分析；需要发表级曲线时，建议把导出的 Prism CSV 再用 Prism 做正式拟合。</div>
+        </details>
+      </section>
+
+      <section id="panel-flow" class="tool-panel" data-panel="flow">
+        <div class="module-head">
+          <div>
+            <h2>流式凋亡 / 细胞周期统计整理</h2>
+            <p class="module-note">粘贴 FlowJo、NovoExpress 或仪器统计结果，自动整理 Annexin V/PI 四象限凋亡或细胞周期比例，计算均值、SD、SEM、P 值并导出 Prism CSV。</p>
+          </div>
+          <div class="quick-note">默认凋亡逻辑：Q2 为晚期凋亡，Q4 为早期凋亡，总凋亡 = Q2 + Q4。</div>
+        </div>
+
+        <h3>一、流式统计数据</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="flow-data">分组与复孔</label>
+            <textarea id="flow-data">Control, R1, 2.1, 3.4, 90.2, 4.3
+Control, R2, 2.4, 3.1, 90.0, 4.5
+Control, R3, 2.0, 3.6, 89.8, 4.6
+Treat_1, R1, 3.2, 9.8, 77.5, 9.5
+Treat_1, R2, 3.6, 10.4, 76.8, 9.2
+Treat_1, R3, 3.3, 9.9, 77.2, 9.6
+Treat_2, R1, 4.5, 18.2, 61.0, 16.3
+Treat_2, R2, 4.2, 17.5, 62.4, 15.9
+Treat_2, R3, 4.7, 18.8, 60.5, 16.0</textarea>
+            <div class="help">凋亡格式：组名, 复孔名, Q1, Q2, Q3, Q4。细胞周期格式：组名, 复孔名, G0/G1, S, G2/M，可选 Sub-G1。</div>
+          </div>
+          <div class="panel">
+            <div class="grid">
+              <div>
+                <label for="flow-mode">分析类型</label>
+                <select id="flow-mode">
+                  <option value="apoptosis">Annexin V/PI 凋亡四象限</option>
+                  <option value="cycle">细胞周期比例</option>
+                </select>
+              </div>
+              <div>
+                <label for="flow-control-group">对照组名</label>
+                <input id="flow-control-group" type="text" value="Control" />
+              </div>
+              <div>
+                <label for="flow-metric">绘图/检验指标</label>
+                <select id="flow-metric"></select>
+              </div>
+              <div>
+                <label for="flow-test-mode">统计检验</label>
+                <select id="flow-test-mode">
+                  <option value="welch">Welch t-test（默认）</option>
+                  <option value="student">Student t-test</option>
+                </select>
+              </div>
+              <div class="flow-apoptosis-setting">
+                <label for="flow-early-quadrant">早期凋亡象限</label>
+                <select id="flow-early-quadrant">
+                  <option value="q4">Q4（默认）</option>
+                  <option value="q1">Q1</option>
+                  <option value="q2">Q2</option>
+                  <option value="q3">Q3</option>
+                </select>
+              </div>
+              <div class="flow-apoptosis-setting">
+                <label for="flow-late-quadrant">晚期凋亡象限</label>
+                <select id="flow-late-quadrant">
+                  <option value="q2">Q2（默认）</option>
+                  <option value="q1">Q1</option>
+                  <option value="q3">Q3</option>
+                  <option value="q4">Q4</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="flow-calc">分析流式数据</button>
+          <button class="action secondary" type="button" id="flow-example">填入示例</button>
+          <button class="action secondary" type="button" id="flow-download" disabled>导出 Prism CSV</button>
+        </div>
+
+        <div id="flow-result" class="result" aria-live="polite"></div>
+        <div id="flow-chart-box" class="result" aria-live="polite" style="display:none;">
+          <p class="result-title">流式统计图</p>
+          <div class="chart-wrap">
+            <canvas id="flow-chart" width="920" height="430"></canvas>
+          </div>
+        </div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div class="section-title">凋亡四象限</div>
+          <div><span class="formula">总凋亡% = 早期凋亡象限 + 晚期凋亡象限</span></div>
+          <div><span class="formula">默认：Q1 坏死/机械损伤，Q2 晚期凋亡，Q3 活细胞，Q4 早期凋亡</span></div>
+          <div class="section-title">细胞周期</div>
+          <div><span class="formula">每个阶段按复孔计算均值、SD、SEM；选定指标后与对照组做 t-test。</span></div>
+          <div class="help">不同流式软件四象限命名可能相反；如果你的门控方向不同，只要在“早期/晚期凋亡象限”里改一下即可。</div>
         </details>
       </section>
 
@@ -2442,6 +2538,7 @@ Treat_2, 3, 8800, 9850</textarea>
       let vaLastCsv = "";
       let icLastCsv = "";
       let elisaLastCsv = "";
+      let flowLastCsv = "";
       let wbgLastCsv = "";
       let vaPlateImageUrl = "";
       let vaPlateScanUrl = "";
@@ -4217,6 +4314,305 @@ Treat_2, 3, 8800, 9850</textarea>
 
       function downloadElisaCsv() {
         downloadCsv("elisa_standard_curve_results.csv", elisaLastCsv);
+      }
+
+      function flowMetricDefinitions(mode) {
+        if (mode === "cycle") {
+          return [
+            ["g0g1", "G0/G1 %"],
+            ["s", "S %"],
+            ["g2m", "G2/M %"],
+            ["subg1", "Sub-G1 %"]
+          ];
+        }
+        return [
+          ["total", "总凋亡 %"],
+          ["early", "早期凋亡 %"],
+          ["late", "晚期凋亡 %"],
+          ["q1", "Q1 %"],
+          ["q2", "Q2 %"],
+          ["q3", "Q3 %"],
+          ["q4", "Q4 %"]
+        ];
+      }
+
+      function flowMetricLabel(metric, mode = $("flow-mode")?.value || "apoptosis") {
+        return (flowMetricDefinitions(mode).find(([key]) => key === metric) || [metric, metric])[1];
+      }
+
+      function flowUpdateMetricOptions() {
+        const mode = $("flow-mode").value;
+        const current = $("flow-metric").value;
+        const options = flowMetricDefinitions(mode);
+        $("flow-metric").innerHTML = options.map(([key, label]) => `<option value="${key}">${label}</option>`).join("");
+        $("flow-metric").value = options.some(([key]) => key === current) ? current : options[0][0];
+        document.querySelectorAll(".flow-apoptosis-setting").forEach((node) => {
+          node.style.display = mode === "apoptosis" ? "" : "none";
+        });
+      }
+
+      function parseFlowRows(text, mode) {
+        return splitLines(text).map((line, index) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length < 4 || /^(group|sample|组名)$/i.test(parts[0])) return null;
+          const secondIsNumber = isFinite(parseFloat(parts[1]));
+          const group = parts[0] || `Group_${index + 1}`;
+          const replicate = secondIsNumber ? `R${index + 1}` : parts[1];
+          const values = (secondIsNumber ? parts.slice(1) : parts.slice(2)).map((value) => parseFloat(value)).filter((value) => isFinite(value));
+          if (mode === "cycle") {
+            if (values.length < 3) return null;
+            return {
+              group,
+              replicate,
+              g0g1: values[0],
+              s: values[1],
+              g2m: values[2],
+              subg1: values.length >= 4 ? values[3] : NaN,
+              raw: line
+            };
+          }
+          if (values.length < 4) return null;
+          const row = {
+            group,
+            replicate,
+            q1: values[0],
+            q2: values[1],
+            q3: values[2],
+            q4: values[3],
+            raw: line
+          };
+          const earlyKey = $("flow-early-quadrant").value;
+          const lateKey = $("flow-late-quadrant").value;
+          row.early = row[earlyKey];
+          row.late = row[lateKey];
+          row.total = row.early + row.late;
+          return row;
+        }).filter(Boolean);
+      }
+
+      function flowGroupRows(rows, metric) {
+        const map = new Map();
+        rows.forEach((row) => {
+          const value = row[metric];
+          if (!isFinite(value)) return;
+          if (!map.has(row.group)) map.set(row.group, []);
+          map.get(row.group).push({ row, value });
+        });
+        return Array.from(map.entries()).map(([name, entries]) => {
+          const values = entries.map((entry) => entry.value);
+          return {
+            name,
+            entries,
+            values,
+            n: values.length,
+            mean: mean(values),
+            sd: sd(values),
+            sem: qpaSem(values),
+            p: NaN,
+            stars: "n/a"
+          };
+        });
+      }
+
+      function flowBuildCsv(rows, summaries, mode, metric, controlName) {
+        const metricLabel = flowMetricLabel(metric, mode);
+        const csvRows = [["Flow cytometry analysis"], ["Mode", mode === "cycle" ? "Cell cycle" : "Apoptosis"], ["Metric", metricLabel], ["Control", controlName], []];
+        if (mode === "cycle") {
+          csvRows.push(["Raw"], ["Group", "Replicate", "G0/G1 %", "S %", "G2/M %", "Sub-G1 %"]);
+          rows.forEach((row) => csvRows.push([row.group, row.replicate, row.g0g1, row.s, row.g2m, isFinite(row.subg1) ? row.subg1 : ""]));
+        } else {
+          csvRows.push(["Raw"], ["Group", "Replicate", "Q1 %", "Q2 %", "Q3 %", "Q4 %", "Early %", "Late %", "Total apoptosis %"]);
+          rows.forEach((row) => csvRows.push([row.group, row.replicate, row.q1, row.q2, row.q3, row.q4, row.early, row.late, row.total]));
+        }
+        csvRows.push([], ["Summary"], ["Group", "n", "Mean", "SD", "SEM", "P value vs control", "Significance"]);
+        summaries.forEach((summary) => csvRows.push([summary.name, summary.n, summary.mean, summary.sd, summary.sem, isFinite(summary.p) ? summary.p : "", summary.stars]));
+        csvRows.push([], ["Prism column data"]);
+        const maxN = Math.max(...summaries.map((summary) => summary.values.length));
+        csvRows.push(summaries.map((summary) => summary.name));
+        for (let i = 0; i < maxN; i += 1) {
+          csvRows.push(summaries.map((summary) => isFinite(summary.values[i]) ? summary.values[i] : ""));
+        }
+        return rowsToCsv(csvRows);
+      }
+
+      function flowFormatP(p) {
+        if (!isFinite(p)) return "对照";
+        if (p < 0.0001) return "<0.0001";
+        return fmt(p, 5);
+      }
+
+      function flowDrawChart(summaries, metricLabel) {
+        const box = $("flow-chart-box");
+        const canvas = $("flow-chart");
+        if (!canvas || !summaries.length) return;
+        const ctx = canvas.getContext("2d");
+        box.style.display = "block";
+        box.className = "result ok";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const pad = { l: 72, r: 28, t: 44, b: 86 };
+        const w = canvas.width - pad.l - pad.r;
+        const h = canvas.height - pad.t - pad.b;
+        const maxY = Math.max(10, ...summaries.map((summary) => summary.mean + (isFinite(summary.sem) ? summary.sem : 0))) * 1.28;
+        const yFor = (value) => pad.t + h - (Math.max(0, value) / maxY) * h;
+        const colors = ["#08766d", "#d99022", "#5279b7", "#d23f57", "#56a36c", "#b47cc7"];
+        ctx.strokeStyle = "#cfd8d6";
+        ctx.lineWidth = 1;
+        ctx.font = "12px Arial";
+        for (let i = 0; i <= 5; i += 1) {
+          const yVal = maxY * i / 5;
+          const y = yFor(yVal);
+          ctx.beginPath();
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(pad.l + w, y);
+          ctx.stroke();
+          ctx.fillStyle = "#607177";
+          ctx.textAlign = "right";
+          ctx.fillText(fmt(yVal, 1), pad.l - 10, y + 4);
+        }
+        ctx.strokeStyle = "#172326";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad.l, pad.t);
+        ctx.lineTo(pad.l, pad.t + h);
+        ctx.lineTo(pad.l + w, pad.t + h);
+        ctx.stroke();
+        const slot = w / Math.max(1, summaries.length);
+        const barW = Math.min(64, slot * 0.52);
+        summaries.forEach((summary, index) => {
+          const x = pad.l + slot * index + slot / 2;
+          const y = yFor(summary.mean);
+          const color = colors[index % colors.length];
+          ctx.fillStyle = color;
+          ctx.fillRect(x - barW / 2, y, barW, pad.t + h - y);
+          const err = (isFinite(summary.sem) ? summary.sem : 0) / maxY * h;
+          ctx.strokeStyle = "#172326";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(x, y - err);
+          ctx.lineTo(x, y + err);
+          ctx.moveTo(x - 8, y - err);
+          ctx.lineTo(x + 8, y - err);
+          ctx.moveTo(x - 8, y + err);
+          ctx.lineTo(x + 8, y + err);
+          ctx.stroke();
+          summary.values.forEach((value, dotIndex) => {
+            const jitter = summary.values.length === 1 ? 0 : (dotIndex - (summary.values.length - 1) / 2) * Math.min(8, barW / summary.values.length);
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(x + jitter, yFor(value), 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#172326";
+            ctx.stroke();
+          });
+          ctx.save();
+          ctx.translate(x, pad.t + h + 18);
+          ctx.rotate(-Math.PI / 5);
+          ctx.fillStyle = "#172326";
+          ctx.textAlign = "right";
+          ctx.font = "12px Arial";
+          ctx.fillText(summary.name, 0, 0);
+          ctx.restore();
+          if (isFinite(summary.p)) {
+            ctx.fillStyle = "#172326";
+            ctx.textAlign = "center";
+            ctx.font = "700 13px Arial";
+            ctx.fillText(summary.stars, x, Math.max(18, y - err - 10));
+          }
+        });
+        ctx.fillStyle = "#172326";
+        ctx.textAlign = "center";
+        ctx.font = "700 18px Arial";
+        ctx.fillText(`流式 ${metricLabel}`, canvas.width / 2, 24);
+        ctx.save();
+        ctx.translate(20, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = "14px Arial";
+        ctx.fillText(metricLabel, 0, 0);
+        ctx.restore();
+      }
+
+      function calculateFlow() {
+        try {
+          const mode = $("flow-mode").value;
+          const metric = $("flow-metric").value;
+          const controlName = $("flow-control-group").value.trim() || "Control";
+          const rows = parseFlowRows($("flow-data").value, mode);
+          const testMode = $("flow-test-mode").value;
+          if (!rows.length) throw new Error("没有解析到可用流式数据。");
+          const summaries = flowGroupRows(rows, metric);
+          if (!summaries.length) throw new Error("当前指标没有可用数值。");
+          const control = summaries.find((summary) => qpaNorm(summary.name) === qpaNorm(controlName));
+          if (!control) throw new Error("没有找到对照组，请检查对照组名。");
+          summaries.forEach((summary) => {
+            if (summary === control) {
+              summary.p = NaN;
+              summary.stars = "control";
+              return;
+            }
+            const test = qpaTTest(summary.values, control.values, testMode);
+            summary.p = test.p;
+            summary.stars = qpaPStars(summary.p);
+          });
+          const metricLabel = flowMetricLabel(metric, mode);
+          const rawRows = rows.map((row) => mode === "cycle"
+            ? [escapeHtml(row.group), escapeHtml(row.replicate), fmt(row.g0g1, 3), fmt(row.s, 3), fmt(row.g2m, 3), fmt(row.subg1, 3)]
+            : [escapeHtml(row.group), escapeHtml(row.replicate), fmt(row.q1, 3), fmt(row.q2, 3), fmt(row.q3, 3), fmt(row.q4, 3), fmt(row.early, 3), fmt(row.late, 3), fmt(row.total, 3)]
+          );
+          const summaryRows = summaries.map((summary) => [
+            escapeHtml(summary.name),
+            fmtInt(summary.n),
+            fmt(summary.mean, 3),
+            fmt(summary.sd, 3),
+            fmt(summary.sem, 3),
+            escapeHtml(flowFormatP(summary.p)),
+            escapeHtml(summary.stars)
+          ]);
+          flowLastCsv = flowBuildCsv(rows, summaries, mode, metric, controlName);
+          $("flow-download").disabled = !flowLastCsv;
+          setResult("flow-result", `
+            <p class="result-title">流式统计结果</p>
+            <div class="metric-grid">
+              <div class="metric"><strong>${escapeHtml(metricLabel)}</strong><span>当前指标</span></div>
+              <div class="metric"><strong>${escapeHtml(control.name)}</strong><span>对照组</span></div>
+              <div class="metric"><strong>${summaries.length}</strong><span>分组数</span></div>
+            </div>
+            <div class="section-title">汇总与检验</div>
+            ${table(["组别", "n", "均值%", "SD", "SEM", "P value", "显著性"], summaryRows)}
+            <div class="section-title">原始整理</div>
+            ${mode === "cycle"
+              ? table(["组别", "复孔", "G0/G1%", "S%", "G2/M%", "Sub-G1%"], rawRows)
+              : table(["组别", "复孔", "Q1%", "Q2%", "Q3%", "Q4%", "早凋%", "晚凋%", "总凋亡%"], rawRows)}
+          `, "ok");
+          flowDrawChart(summaries, metricLabel);
+          return true;
+        } catch (error) {
+          flowLastCsv = "";
+          $("flow-download").disabled = true;
+          $("flow-chart-box").style.display = "none";
+          setResult("flow-result", `<p class="result-title">流式统计失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
+          return false;
+        }
+      }
+
+      function fillFlowExample() {
+        if ($("flow-mode").value === "cycle") {
+          $("flow-control-group").value = "Control";
+          $("flow-data").value = "Control, R1, 60.2, 24.1, 15.7, 2.0\nControl, R2, 61.0, 23.8, 15.2, 1.8\nControl, R3, 59.6, 24.5, 15.9, 2.1\nTreat_1, R1, 48.5, 32.0, 19.5, 4.2\nTreat_1, R2, 47.8, 32.5, 19.7, 4.5\nTreat_1, R3, 49.0, 31.8, 19.2, 4.0\nTreat_2, R1, 38.2, 39.4, 22.4, 8.1\nTreat_2, R2, 37.5, 40.1, 22.4, 8.4\nTreat_2, R3, 38.8, 39.0, 22.2, 7.8";
+          $("flow-metric").value = "s";
+        } else {
+          $("flow-control-group").value = "Control";
+          $("flow-early-quadrant").value = "q4";
+          $("flow-late-quadrant").value = "q2";
+          $("flow-data").value = "Control, R1, 2.1, 3.4, 90.2, 4.3\nControl, R2, 2.4, 3.1, 90.0, 4.5\nControl, R3, 2.0, 3.6, 89.8, 4.6\nTreat_1, R1, 3.2, 9.8, 77.5, 9.5\nTreat_1, R2, 3.6, 10.4, 76.8, 9.2\nTreat_1, R3, 3.3, 9.9, 77.2, 9.6\nTreat_2, R1, 4.5, 18.2, 61.0, 16.3\nTreat_2, R2, 4.2, 17.5, 62.4, 15.9\nTreat_2, R3, 4.7, 18.8, 60.5, 16.0";
+          $("flow-metric").value = "total";
+        }
+        calculateFlow();
+      }
+
+      function downloadFlowCsv() {
+        downloadCsv("flow_cytometry_prism.csv", flowLastCsv);
       }
 
       function vaPlateRoleLabel(role) {
@@ -7197,6 +7593,18 @@ Treat_2, 3, 8800, 9850</textarea>
         $("elisa-calc").addEventListener("click", calculateElisa);
         $("elisa-example").addEventListener("click", fillElisaExample);
         $("elisa-download").addEventListener("click", downloadElisaCsv);
+        flowUpdateMetricOptions();
+        $("flow-mode").addEventListener("change", () => {
+          flowUpdateMetricOptions();
+          flowLastCsv = "";
+          $("flow-download").disabled = true;
+          $("flow-result").className = "result";
+          $("flow-result").innerHTML = "";
+          $("flow-chart-box").style.display = "none";
+        });
+        $("flow-calc").addEventListener("click", calculateFlow);
+        $("flow-example").addEventListener("click", fillFlowExample);
+        $("flow-download").addEventListener("click", downloadFlowCsv);
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("mm-calc").addEventListener("click", calculateMasterMix);
@@ -7250,7 +7658,7 @@ Treat_2, 3, 8800, 9850</textarea>
       vaPlateRender();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "seeding", "drug", "viability", "ic50", "elisa", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "wbdensity", "virus"].includes(initialTab)) {
+      if (["cell", "seeding", "drug", "viability", "ic50", "elisa", "flow", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "wbdensity", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
