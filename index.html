@@ -1457,7 +1457,8 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
             </div>
           </div>
           <div class="actions">
-            <button class="action secondary" type="button" id="va-plate-ocr">尝试从图片识别</button>
+            <button class="action secondary" type="button" id="va-plate-scan">生成扫描预览</button>
+            <button class="action secondary" type="button" id="va-plate-ocr">扫描并识别图片</button>
             <button class="action secondary" type="button" id="va-plate-parse">解析为 96 孔板</button>
             <button class="action secondary" type="button" id="va-plate-clear">清空读板</button>
           </div>
@@ -2197,6 +2198,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       let qmeLastPrismCsv = "";
       let vaLastCsv = "";
       let vaPlateImageUrl = "";
+      let vaPlateScanUrl = "";
       let vaTesseractPromise = null;
       let vaTesseractWorker = null;
       const vaPlateWells = new Map();
@@ -3429,7 +3431,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       function vaPlateNumbersFromLine(line) {
         const normalized = String(line || "")
           .replace(/[Oo](?=[\.,]?\d)/g, "0")
-          .replace(/(?<=\d)[Oo]/g, "0");
+          .replace(/(?<=\d)[Oo]/g, "0")
+          .replace(/\b([0-9])\s+(\d{3})\b/g, "$1.$2")
+          .replace(/\b([0-9])[\.,]\s+(\d{2,3})\b/g, "$1.$2");
         return (normalized.match(/-?(?:\d+[\.,]\d+|\.\d+)/g) || [])
           .map((value) => parseFloat(value.replace(",", ".").replace(/^\./, "0.")))
           .filter((value) => isFinite(value));
@@ -3437,24 +3441,28 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
 
       function vaPlateParseText(text) {
         const values = new Map();
-        const unlabeledRows = [];
+        const parsedRows = [];
         splitLines(text).forEach((line) => {
-          const rowMatch = line.match(/^\s*([A-Ha-h])\b/);
+          const rowMatch = line.match(/^\s*(?:\d+)?\s*([A-Ha-h])(?:\b|\d)?/);
           const nums = vaPlateNumbersFromLine(line);
           if (rowMatch && nums.length >= 8) {
-            const row = rowMatch[1].toUpperCase();
-            nums.slice(0, 12).forEach((value, index) => values.set(`${row}${index + 1}`, value));
+            parsedRows.push({ row: rowMatch[1].toUpperCase(), nums: nums.slice(0, 12) });
           } else if (nums.length >= 10) {
-            unlabeledRows.push(nums.slice(0, 12));
+            parsedRows.push({ row: "", nums: nums.slice(0, 12) });
           }
         });
-        if (values.size < 60 && unlabeledRows.length >= 8) {
-          values.clear();
-          unlabeledRows.slice(0, 8).forEach((nums, rowIndex) => {
-            const row = String.fromCharCode(65 + rowIndex);
-            nums.slice(0, 12).forEach((value, index) => values.set(`${row}${index + 1}`, value));
-          });
-        }
+        const usedRows = new Set();
+        parsedRows.forEach((entry) => {
+          if (!entry.row || usedRows.has(entry.row)) return;
+          usedRows.add(entry.row);
+          entry.nums.forEach((value, index) => values.set(`${entry.row}${index + 1}`, value));
+        });
+        const missingRows = "ABCDEFGH".split("").filter((row) => !usedRows.has(row));
+        parsedRows.filter((entry) => !entry.row).slice(0, missingRows.length).forEach((entry, index) => {
+          const row = missingRows[index];
+          usedRows.add(row);
+          entry.nums.forEach((value, colIndex) => values.set(`${row}${colIndex + 1}`, value));
+        });
         return values;
       }
 
@@ -3476,36 +3484,66 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
 
       function vaPlateCropRect(width, height) {
         return {
-          x: Math.round(width * 0.27),
-          y: Math.round(height * 0.24),
-          w: Math.round(width * 0.56),
-          h: Math.round(height * 0.49)
+          x: Math.round(width * 0.255),
+          y: Math.round(height * 0.285),
+          w: Math.round(width * 0.545),
+          h: Math.round(height * 0.445)
         };
       }
 
-      async function vaPlatePreparedOcrBlob(file) {
-        const bitmap = await createImageBitmap(file);
-        const crop = vaPlateCropRect(bitmap.width, bitmap.height);
-        const scale = Math.max(1.8, Math.min(3, 1700 / crop.w));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(crop.w * scale);
-        canvas.height = Math.round(crop.h * scale);
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
-        const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        for (let i = 0; i < data.data.length; i += 4) {
-          const gray = data.data[i] * 0.299 + data.data[i + 1] * 0.587 + data.data[i + 2] * 0.114;
-          const contrasted = Math.max(0, Math.min(255, (gray - 128) * 1.45 + 128));
-          data.data[i] = contrasted;
-          data.data[i + 1] = contrasted;
-          data.data[i + 2] = contrasted;
-        }
-        ctx.putImageData(data, 0, 0);
+      function vaCanvasToBlob(canvas) {
         return new Promise((resolve, reject) => {
           canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("图片预处理失败。")), "image/png");
         });
+      }
+
+      async function vaPlateScanCanvas(file) {
+        const bitmap = await createImageBitmap(file);
+        const crop = vaPlateCropRect(bitmap.width, bitmap.height);
+        const scale = Math.max(1.8, Math.min(3, 1900 / crop.w));
+        const margin = 18;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(crop.w * scale) + margin * 2;
+        canvas.height = Math.round(crop.h * scale) + margin * 2;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(bitmap, crop.x, crop.y, crop.w, crop.h, margin, margin, canvas.width - margin * 2, canvas.height - margin * 2);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < data.data.length; i += 4) {
+          const gray = data.data[i] * 0.299 + data.data[i + 1] * 0.587 + data.data[i + 2] * 0.114;
+          const scanned = Math.max(0, Math.min(255, (gray - 128) * 1.55 + 142));
+          data.data[i] = scanned;
+          data.data[i + 1] = scanned;
+          data.data[i + 2] = scanned;
+        }
+        ctx.putImageData(data, 0, 0);
+        return canvas;
+      }
+
+      async function vaPlatePreparedOcrBlob(file) {
+        return vaCanvasToBlob(await vaPlateScanCanvas(file));
+      }
+
+      async function vaPlateShowScanPreview() {
+        const file = $("va-plate-image").files?.[0];
+        if (!file) {
+          setResult("va-plate-status", "<strong>请先上传照片。</strong>", "warn");
+          return null;
+        }
+        try {
+          const blob = await vaPlatePreparedOcrBlob(file);
+          if (vaPlateScanUrl) URL.revokeObjectURL(vaPlateScanUrl);
+          vaPlateScanUrl = URL.createObjectURL(blob);
+          $("va-plate-preview").innerHTML = `<img alt="读板区域扫描增强预览" src="${vaPlateScanUrl}">`;
+          setResult("va-plate-status", "<strong>已生成扫描增强预览。</strong> OCR 将只读取这块孔板数据区域。", "ok");
+          return blob;
+        } catch (error) {
+          setResult("va-plate-status", `<strong>扫描增强失败：</strong>${escapeHtml(error.message)}`, "danger");
+          return null;
+        }
       }
 
       async function vaPlateTryOcr() {
@@ -3524,12 +3562,17 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           const blocks = await detector.detect(bitmap);
           const text = blocks.map((block) => block.rawValue || "").filter(Boolean).join("\n");
           $("va-plate-text").value = text;
-          setResult("va-plate-status", `<strong>已尝试本地识别孔板区域 ${blocks.length} 段文字。</strong> 请核对文本后解析为孔板。`, blocks.length ? "ok" : "warn");
-          if (text) vaPlateParseToGrid();
-          return Boolean(text);
+          const parsedCount = vaPlateParseText(text).size;
+          if (parsedCount >= 60) {
+            setResult("va-plate-status", `<strong>原生 OCR 已识别到 ${parsedCount} 个孔位。</strong> 请核对文本后解析为孔板。`, "ok");
+            vaPlateParseToGrid();
+            return true;
+          }
+          setResult("va-plate-status", "<strong>原生 OCR 没有读出孔板表格。</strong> 正在切换到内置离线 OCR。", "warn");
+          return vaPlateTryTesseractOcr(file);
         } catch (error) {
-          setResult("va-plate-status", `<strong>图片识别失败：</strong>${escapeHtml(error.message)}。可以改用仪器导出文本或手机 OCR 粘贴。`, "warn");
-          return false;
+          setResult("va-plate-status", `<strong>原生 OCR 失败：</strong>${escapeHtml(error.message)}。正在切换到内置离线 OCR。`, "warn");
+          return vaPlateTryTesseractOcr(file);
         }
       }
 
@@ -3570,7 +3613,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
             await worker.setParameters({
               tessedit_char_whitelist: "ABCDEFGHabcdefgh0123456789. ",
               preserve_interword_spaces: "1",
-              tessedit_pageseg_mode: window.Tesseract.PSM?.SPARSE_TEXT || "11"
+              tessedit_pageseg_mode: window.Tesseract.PSM?.SINGLE_BLOCK || "6"
             });
             vaTesseractWorker = worker;
             return worker;
@@ -3583,8 +3626,8 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         try {
           const worker = await vaEnsureTesseractWorker();
           setResult("va-plate-status", "<strong>正在用内置离线 OCR 识别孔板区域...</strong> 屏幕照片会受反光、倾斜和焦点影响，识别后请核对。", "ok");
-          const blob = await vaPlatePreparedOcrBlob(file);
-          const { data } = await worker.recognize(blob);
+          const canvas = await vaPlateScanCanvas(file);
+          const { data } = await worker.recognize(canvas);
           const text = data?.text || "";
           $("va-plate-text").value = text;
           if (text.trim()) {
@@ -3603,6 +3646,10 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       function vaPlateHandleImage() {
         const file = $("va-plate-image").files?.[0];
         if (vaPlateImageUrl) URL.revokeObjectURL(vaPlateImageUrl);
+        if (vaPlateScanUrl) {
+          URL.revokeObjectURL(vaPlateScanUrl);
+          vaPlateScanUrl = "";
+        }
         if (!file) {
           vaPlateImageUrl = "";
           $("va-plate-preview").textContent = "上传照片后在这里预览。网页会先尝试浏览器原生 OCR，不支持时改用内置离线 OCR。";
@@ -5958,6 +6005,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           $("va-result").innerHTML = "";
         });
         $("va-plate-image").addEventListener("change", vaPlateHandleImage);
+        $("va-plate-scan").addEventListener("click", vaPlateShowScanPreview);
         $("va-plate-ocr").addEventListener("click", vaPlateTryOcr);
         $("va-plate-parse").addEventListener("click", vaPlateParseToGrid);
         $("va-plate-clear").addEventListener("click", vaPlateClear);
