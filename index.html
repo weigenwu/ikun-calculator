@@ -972,6 +972,11 @@
       height: 430px;
     }
 
+    .chart-wrap canvas.wide-chart {
+      width: min(100%, 1080px);
+      height: 460px;
+    }
+
     details.formula-box {
       margin-top: 18px;
       border: 1px solid var(--border);
@@ -1152,6 +1157,7 @@
       <button class="tab-button active" type="button" data-tab="cell" aria-controls="panel-cell">细胞计数板</button>
       <button class="tab-button" type="button" data-tab="seeding" aria-controls="panel-seeding">细胞铺板</button>
       <button class="tab-button" type="button" data-tab="drug" aria-controls="panel-drug">药物梯度</button>
+      <button class="tab-button" type="button" data-tab="viability" aria-controls="panel-viability">活性/ADCC</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
       <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
       <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
@@ -1323,6 +1329,100 @@
           <div><span class="formula">培养基体积 = 终体积 - 母液体积</span></div>
           <div><span class="formula">溶剂比例 = 母液体积 / 终体积 × 100%</span></div>
           <div class="help">如果不同浓度组需要严格保持一致 DMSO/溶剂比例，建议用最高浓度组的溶剂比例给低浓度组补 vehicle。</div>
+        </details>
+      </section>
+
+      <section id="panel-viability" class="tool-panel" data-panel="viability">
+        <div class="module-head">
+          <div>
+            <h2>CCK8 / MTT / ADCC 细胞活性分析计算器</h2>
+            <p class="module-note">粘贴 OD、吸光度或发光读数，自动扣空白、归一化、计算存活率/抑制率/ADCC杀伤率，也可绘制 OD450 时间曲线并导出 Prism CSV。</p>
+          </div>
+          <div class="quick-note">CCK8/MTT 看活性，ADCC 看杀伤；数据结构类似，公式不同。</div>
+        </div>
+
+        <h3>一、读数与方法</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="va-data">分组读数</label>
+            <textarea id="va-data">Blank, 0.050, 0.052, 0.049
+Control, 0.820, 0.840, 0.835
+Drug_1, 0.610, 0.625, 0.618
+Drug_2, 0.360, 0.372, 0.355</textarea>
+            <div class="help">终点模式：组名, 复孔1, 复孔2。时间曲线：面板名, 组名, 时间h, 复孔1, 复孔2。可从 Excel 粘贴，逗号或制表符都可以。</div>
+          </div>
+          <div class="panel">
+            <div class="grid">
+              <div>
+                <label for="va-method">分析方法</label>
+                <select id="va-method">
+                  <option value="viability">CCK8 / MTT：相对存活率</option>
+                  <option value="timecourse">CCK8 / MTT：时间曲线 OD450</option>
+                  <option value="adcc-viability">ADCC：存活读数法杀伤率</option>
+                  <option value="adcc-release">ADCC / LDH：释放法杀伤率</option>
+                </select>
+              </div>
+              <div>
+                <label for="va-blank-group">空白组名</label>
+                <input id="va-blank-group" type="text" value="Blank" />
+              </div>
+              <div>
+                <label for="va-control-group">对照 / Target only 组名</label>
+                <input id="va-control-group" type="text" value="Control" />
+                <div class="help">时间曲线里不同面板可用逗号分隔多个对照名，例如 Control, Vector。</div>
+              </div>
+              <div>
+                <label for="va-effector-group">Effector only 组名，可选</label>
+                <input id="va-effector-group" type="text" placeholder="例如 Effector_only" />
+              </div>
+              <div>
+                <label for="va-spontaneous-group">自发释放组名，LDH 可用</label>
+                <input id="va-spontaneous-group" type="text" placeholder="例如 Spontaneous" />
+              </div>
+              <div>
+                <label for="va-max-group">最大裂解组名，LDH 可用</label>
+                <input id="va-max-group" type="text" placeholder="例如 Max" />
+              </div>
+              <div>
+                <label for="va-test-mode">统计检验</label>
+                <select id="va-test-mode">
+                  <option value="welch">Welch t-test（默认）</option>
+                  <option value="student">Student t-test</option>
+                </select>
+              </div>
+              <div>
+                <label for="va-y-label">时间曲线 Y 轴</label>
+                <input id="va-y-label" type="text" value="OD450" />
+              </div>
+              <label class="sample-check" style="align-self:end;">
+                <input id="va-subtract-effector" type="checkbox" checked />
+                <span>ADCC 存活读数扣除 effector-only 背景</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="va-calc">分析细胞活性 / ADCC</button>
+          <button class="action secondary" type="button" id="va-example">填入示例</button>
+          <button class="action secondary" type="button" id="va-download" disabled>导出 Prism CSV</button>
+        </div>
+
+        <div id="va-result" class="result" aria-live="polite"></div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div class="section-title">CCK8 / MTT</div>
+          <div><span class="formula">校正读数 = 原始读数 - 空白均值</span></div>
+          <div><span class="formula">存活率% = 校正读数 / 对照组校正均值 × 100</span></div>
+          <div><span class="formula">抑制率% = 100 - 存活率%</span></div>
+          <div class="section-title">CCK8 / MTT 时间曲线</div>
+          <div><span class="formula">每个时间点按复孔计算均值、SD、SEM；若同一面板和时间含 Blank 组，会先扣除该时间点空白均值。</span></div>
+          <div class="section-title">ADCC 存活读数法</div>
+          <div><span class="formula">杀伤率% = [1 - (实验孔 - 空白 - Effector only背景) / (Target only - 空白)] × 100</span></div>
+          <div class="section-title">ADCC / LDH 释放法</div>
+          <div><span class="formula">杀伤率% = (实验释放 - Effector背景 - Target自发释放) / (Target最大裂解 - Target自发释放) × 100</span></div>
+          <div class="help">不同试剂盒公式可能略有差异；这里是常用数据处理框架，正式记录请按你实际试剂盒说明书核对。</div>
         </details>
       </section>
 
@@ -1993,6 +2093,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       let mmLastCsv = "";
       let qmeLastSummaryCsv = "";
       let qmeLastPrismCsv = "";
+      let vaLastCsv = "";
       let qmePrimaryWell = "A1";
       let qmeSelectedWells = new Set(["A1"]);
       let musicObjectUrl = "";
@@ -2540,6 +2641,605 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("drug-extra").value = "10";
         $("drug-min-pipette").value = "0.5";
         calculateDrugGradient();
+      }
+
+      function parseViabilityRows(text) {
+        return splitLines(text).map((line) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          const name = parts[0] || "";
+          const values = parts.slice(1).map((value) => parseFloat(value)).filter((value) => isFinite(value));
+          return { name, values };
+        }).filter((row) => row.name && row.values.length);
+      }
+
+      function viabilityFindGroup(groups, name) {
+        const key = qpaNorm(name);
+        if (!key) return null;
+        return groups.find((group) => qpaNorm(group.name) === key) || null;
+      }
+
+      function viabilityPercentRows(results, controlName) {
+        return results.map((entry) => [
+          escapeHtml(entry.name),
+          fmt(entry.rawMean, 4),
+          fmt(entry.rawSd, 4),
+          fmt(entry.primaryMean, 3),
+          fmt(entry.primarySd, 3),
+          fmt(entry.primarySem, 3),
+          fmt(entry.secondaryMean, 3),
+          isFinite(entry.pValue) ? fmt(entry.pValue, 5) : "n/a",
+          escapeHtml(entry.pStars),
+          qpaNorm(entry.name) === qpaNorm(controlName) ? "对照" : ""
+        ]);
+      }
+
+      function viabilityChartHtml(results, label) {
+        const max = Math.max(1, ...results.map((entry) => Math.max(entry.primaryMean, 0)));
+        return `
+          <div class="mini-chart-grid">
+            <div class="gene-chart">
+              <h4>${escapeHtml(label)}</h4>
+              ${results.map((entry) => {
+                const width = Math.max(2, Math.min(100, Math.max(entry.primaryMean, 0) / max * 100));
+                return `
+                  <div class="bar-line">
+                    <span>${escapeHtml(entry.name)}</span>
+                    <span class="bar-track"><span class="bar-fill" style="width:${width}%"></span></span>
+                    <span>${fmt(entry.primaryMean, 2)} ${entry.pStars}</span>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      function vaShowError(title, message) {
+        vaLastCsv = "";
+        $("va-download").disabled = true;
+        setResult("va-result", `<p class="result-title">${escapeHtml(title)}</p><div class="notice danger">${escapeHtml(message)}</div>`, "danger");
+        return false;
+      }
+
+      function vaControlNames() {
+        return $("va-control-group").value
+          .split(/[,，;；]+/)
+          .map((name) => name.trim())
+          .filter(Boolean);
+      }
+
+      function parseViabilityTimeRows(text) {
+        return splitLines(text).map((line) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length < 4) return null;
+          const panel = parts[0];
+          const group = parts[1];
+          const time = parseFloat(parts[2]);
+          const values = parts.slice(3).map((value) => parseFloat(value)).filter((value) => isFinite(value));
+          if (!panel || !group || !isFinite(time) || !values.length) return null;
+          return { panel, group, time, values };
+        }).filter(Boolean);
+      }
+
+      function vaPanelKey(panel, time) {
+        return `${qpaNorm(panel)}@@${time}`;
+      }
+
+      function summarizeViabilityTimecourse(rows, blankName, controlNames, testMode) {
+        const blankKey = qpaNorm(blankName);
+        const controlKeys = controlNames.map(qpaNorm).filter(Boolean);
+        const blankMap = new Map();
+        rows.forEach((row) => {
+          if (blankKey && qpaNorm(row.group) === blankKey) {
+            const key = vaPanelKey(row.panel, row.time);
+            const merged = (blankMap.get(key) || []).concat(row.values);
+            blankMap.set(key, merged);
+          }
+        });
+
+        const panels = [];
+        const panelMap = new Map();
+        rows.forEach((row) => {
+          if (blankKey && qpaNorm(row.group) === blankKey) return;
+          const panelKey = qpaNorm(row.panel);
+          if (!panelMap.has(panelKey)) {
+            const panel = { name: row.panel, times: new Set(), groups: [], groupMap: new Map() };
+            panelMap.set(panelKey, panel);
+            panels.push(panel);
+          }
+          const panel = panelMap.get(panelKey);
+          const groupKey = qpaNorm(row.group);
+          if (!panel.groupMap.has(groupKey)) {
+            const group = { name: row.group, timeMap: new Map() };
+            panel.groupMap.set(groupKey, group);
+            panel.groups.push(group);
+          }
+          const group = panel.groupMap.get(groupKey);
+          const blankValues = blankMap.get(vaPanelKey(row.panel, row.time)) || [];
+          const blankMean = blankValues.length ? mean(blankValues) : 0;
+          const values = row.values.map((value) => value - blankMean);
+          panel.times.add(row.time);
+          group.timeMap.set(row.time, (group.timeMap.get(row.time) || []).concat(values));
+        });
+
+        panels.forEach((panel) => {
+          panel.times = Array.from(panel.times).sort((a, b) => a - b);
+          panel.groups.forEach((group) => {
+            group.points = panel.times.map((time) => {
+              const values = group.timeMap.get(time) || [];
+              return {
+                time,
+                values,
+                mean: mean(values),
+                sd: sd(values),
+                sem: qpaSem(values),
+                pValue: NaN,
+                pStars: ""
+              };
+            }).filter((point) => point.values.length);
+            group.pointMap = new Map(group.points.map((point) => [point.time, point]));
+          });
+
+          panel.controlGroup = panel.groups.find((group) => controlKeys.includes(qpaNorm(group.name))) || null;
+          if (!panel.controlGroup && !controlKeys.length) panel.controlGroup = panel.groups[0] || null;
+          panel.groups.forEach((group) => {
+            group.points.forEach((point) => {
+              const controlPoint = panel.controlGroup?.pointMap.get(point.time);
+              if (controlPoint && qpaNorm(group.name) !== qpaNorm(panel.controlGroup.name)) {
+                const p = qpaTTest(point.values, controlPoint.values, testMode);
+                point.pValue = p.p;
+                point.pStars = qpaPStars(p.p);
+              } else if (panel.controlGroup && qpaNorm(group.name) === qpaNorm(panel.controlGroup.name)) {
+                point.pValue = 1;
+                point.pStars = "ns";
+              }
+            });
+            const finalPoint = [...group.points].reverse().find((point) => point.values.length);
+            group.finalStars = finalPoint?.pStars || "";
+          });
+        });
+        return panels.filter((panel) => panel.groups.length && panel.times.length);
+      }
+
+      function viabilityTimecourseRows(panels) {
+        const rows = [];
+        panels.forEach((panel) => {
+          panel.groups.forEach((group) => {
+            group.points.forEach((point) => {
+              rows.push([
+                escapeHtml(panel.name),
+                escapeHtml(group.name),
+                fmt(point.time, 2),
+                fmt(point.mean, 4),
+                fmt(point.sd, 4),
+                fmt(point.sem, 4),
+                fmtInt(point.values.length),
+                isFinite(point.pValue) ? fmt(point.pValue, 5) : "n/a",
+                escapeHtml(point.pStars)
+              ]);
+            });
+          });
+        });
+        return rows;
+      }
+
+      function buildViabilityTimecourseCsv(panels, yLabel) {
+        const rows = [["Prism XY data"], [`Y axis`, yLabel]];
+        panels.forEach((panel) => {
+          rows.push([], ["Panel", panel.name]);
+          const repCounts = panel.groups.map((group) => Math.max(...group.points.map((point) => point.values.length), 1));
+          const header = ["Time(h)"];
+          panel.groups.forEach((group, groupIndex) => {
+            for (let index = 0; index < repCounts[groupIndex]; index += 1) {
+              header.push(`${group.name} rep${index + 1}`);
+            }
+          });
+          rows.push(header);
+          panel.times.forEach((time) => {
+            const row = [time];
+            panel.groups.forEach((group, groupIndex) => {
+              const values = group.pointMap.get(time)?.values || [];
+              for (let index = 0; index < repCounts[groupIndex]; index += 1) {
+                row.push(isFinite(values[index]) ? values[index] : "");
+              }
+            });
+            rows.push(row);
+          });
+        });
+        rows.push([], ["Summary"], ["Panel", "Group", "Time(h)", "Mean", "SD", "SEM", "n", "P value", "Stars"]);
+        panels.forEach((panel) => {
+          panel.groups.forEach((group) => {
+            group.points.forEach((point) => {
+              rows.push([
+                panel.name,
+                group.name,
+                point.time,
+                fmt(point.mean, 6),
+                fmt(point.sd, 6),
+                fmt(point.sem, 6),
+                point.values.length,
+                isFinite(point.pValue) ? point.pValue : "",
+                point.pStars
+              ]);
+            });
+          });
+        });
+        return rowsToCsv(rows);
+      }
+
+      function vaNiceMax(value) {
+        if (!isFinite(value) || value <= 0) return 1;
+        if (value <= 2) return Math.ceil(value * 10) / 10;
+        if (value <= 10) return Math.ceil(value);
+        return Math.ceil(value / 10) * 10;
+      }
+
+      function drawViabilityTimecourse(panels, yLabel) {
+        const canvas = $("va-time-chart");
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        const colors = ["#f2bf4c", "#8fd0e8", "#f28f90", "#5279b7", "#56a36c", "#b47cc7", "#4b5b61"];
+        const cols = panels.length === 1 ? 1 : 2;
+        const rows = Math.ceil(panels.length / cols);
+        const width = canvas.width;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        panels.forEach((panel, panelIndex) => {
+          const col = panelIndex % cols;
+          const row = Math.floor(panelIndex / cols);
+          const cellW = width / cols;
+          const cellH = height / rows;
+          const ox = col * cellW;
+          const oy = row * cellH;
+          const pad = { l: 70, r: 30, t: 58, b: 62 };
+          const plotX = ox + pad.l;
+          const plotY = oy + pad.t;
+          const plotW = cellW - pad.l - pad.r;
+          const plotH = cellH - pad.t - pad.b;
+          const minTime = Math.min(...panel.times);
+          const maxTime = Math.max(...panel.times);
+          const xSpan = maxTime === minTime ? 1 : maxTime - minTime;
+          const maxY = vaNiceMax(Math.max(1, ...panel.groups.flatMap((group) => group.points.map((point) => point.mean + point.sem))) * 1.12);
+          const xFor = (time) => plotX + ((time - minTime) / xSpan) * plotW;
+          const yFor = (value) => plotY + plotH - (Math.max(0, value) / maxY) * plotH;
+
+          ctx.strokeStyle = "#111111";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(plotX, plotY);
+          ctx.lineTo(plotX, plotY + plotH);
+          ctx.lineTo(plotX + plotW, plotY + plotH);
+          ctx.stroke();
+
+          ctx.fillStyle = "#111111";
+          ctx.font = "bold 18px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(panel.name, ox + cellW / 2, oy + 28);
+
+          ctx.font = "12px system-ui, sans-serif";
+          ctx.textAlign = "right";
+          for (let tick = 0; tick <= 4; tick += 1) {
+            const value = maxY / 4 * tick;
+            const y = yFor(value);
+            ctx.strokeStyle = tick === 0 ? "#111111" : "#d9e3e0";
+            ctx.lineWidth = tick === 0 ? 2 : 1;
+            ctx.beginPath();
+            ctx.moveTo(plotX, y);
+            ctx.lineTo(plotX + plotW, y);
+            ctx.stroke();
+            ctx.fillStyle = "#111111";
+            ctx.fillText(fmt(value, maxY <= 2 ? 1 : 0), plotX - 10, y + 4);
+          }
+
+          ctx.textAlign = "center";
+          panel.times.forEach((time) => {
+            const x = xFor(time);
+            ctx.strokeStyle = "#111111";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, plotY + plotH);
+            ctx.lineTo(x, plotY + plotH + 7);
+            ctx.stroke();
+            ctx.fillStyle = "#111111";
+            ctx.fillText(fmt(time, 0), x, plotY + plotH + 24);
+          });
+
+          ctx.font = "bold 13px system-ui, sans-serif";
+          ctx.fillText("Time (h)", plotX + plotW / 2, plotY + plotH + 48);
+          ctx.save();
+          ctx.translate(plotX - 52, plotY + plotH / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText(yLabel, 0, 0);
+          ctx.restore();
+
+          panel.groups.forEach((group, groupIndex) => {
+            const color = colors[groupIndex % colors.length];
+            const points = group.points.slice().sort((a, b) => a.time - b.time);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            points.forEach((point, pointIndex) => {
+              const x = xFor(point.time);
+              const y = yFor(point.mean);
+              if (pointIndex === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            points.forEach((point) => {
+              const x = xFor(point.time);
+              const y = yFor(point.mean);
+              const yTop = yFor(point.mean + point.sem);
+              const yBottom = yFor(Math.max(0, point.mean - point.sem));
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(x, yTop);
+              ctx.lineTo(x, yBottom);
+              ctx.moveTo(x - 5, yTop);
+              ctx.lineTo(x + 5, yTop);
+              ctx.moveTo(x - 5, yBottom);
+              ctx.lineTo(x + 5, yBottom);
+              ctx.stroke();
+              ctx.fillStyle = "#ffffff";
+              ctx.beginPath();
+              ctx.arc(x, y, 4, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            });
+
+            const lastPoint = points[points.length - 1];
+            if (lastPoint && lastPoint.pStars && lastPoint.pStars !== "ns") {
+              ctx.fillStyle = "#111111";
+              ctx.font = "bold 14px system-ui, sans-serif";
+              ctx.textAlign = "left";
+              ctx.fillText(lastPoint.pStars, Math.min(plotX + plotW - 22, xFor(lastPoint.time) + 8), Math.max(plotY + 14, yFor(lastPoint.mean) - 8));
+            }
+          });
+
+          let legendX = plotX + 8;
+          let legendY = plotY + 8;
+          ctx.font = "bold 12px system-ui, sans-serif";
+          ctx.textAlign = "left";
+          panel.groups.forEach((group, groupIndex) => {
+            const color = colors[groupIndex % colors.length];
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(legendX, legendY);
+            ctx.lineTo(legendX + 22, legendY);
+            ctx.stroke();
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(legendX + 11, legendY, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#1b3136";
+            ctx.fillText(group.name, legendX + 30, legendY + 4);
+            legendY += 18;
+            if (legendY > plotY + 92) {
+              legendY = plotY + 8;
+              legendX += 120;
+            }
+          });
+        });
+      }
+
+      function calculateViabilityTimecourse() {
+        try {
+          const rows = parseViabilityTimeRows($("va-data").value);
+          if (!rows.length) throw new Error("时间曲线需要按“面板名, 组名, 时间h, 复孔1...”格式粘贴数据。");
+          const controlNames = vaControlNames();
+          const yLabel = $("va-y-label").value.trim() || "OD450";
+          const panels = summarizeViabilityTimecourse(rows, $("va-blank-group").value.trim(), controlNames, $("va-test-mode").value);
+          if (!panels.length) throw new Error("没有可绘制的时间曲线数据，请检查面板名、组名、时间和复孔读数。");
+          const missingControls = controlNames.length
+            ? panels.filter((panel) => !panel.controlGroup).map((panel) => panel.name)
+            : [];
+          const chartHeight = Math.max(460, Math.ceil(panels.length / 2) * 420);
+          vaLastCsv = buildViabilityTimecourseCsv(panels, yLabel);
+          $("va-download").disabled = false;
+          const html = `
+            <p class="result-title">CCK8 / MTT 时间曲线分析结果</p>
+            <div class="metric-grid">
+              <div class="metric"><strong>${fmtInt(panels.length)}</strong><span>面板数</span></div>
+              <div class="metric"><strong>${fmtInt(rows.length)}</strong><span>数据行</span></div>
+              <div class="metric"><strong>${escapeHtml(yLabel)}</strong><span>Y 轴指标</span></div>
+              <div class="metric"><strong>${controlNames.length ? escapeHtml(controlNames.join(", ")) : "每个面板首组"}</strong><span>统计对照</span></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="va-time-chart" class="wide-chart" width="1080" height="${chartHeight}" style="height:${chartHeight}px"></canvas>
+            </div>
+            ${table(["面板", "组别", "时间(h)", "均值", "SD", "SEM", "n", "P value", "显著性"], viabilityTimecourseRows(panels))}
+            <div class="notice ${missingControls.length ? "warn" : "ok"}"><strong>QC：</strong>${missingControls.length ? `这些面板没有找到指定对照：${escapeHtml(missingControls.join(", "))}。图可绘制，但对应 P 值会留空。` : "已按时间点计算均值、误差线和相对对照的 P 值。"}</div>
+          `;
+          setResult("va-result", html, missingControls.length ? "warn" : "ok");
+          requestAnimationFrame(() => drawViabilityTimecourse(panels, yLabel));
+          return true;
+        } catch (error) {
+          return vaShowError("时间曲线分析失败", error.message);
+        }
+      }
+
+      function calculateViability() {
+        const method = $("va-method").value;
+        if (method === "timecourse") return calculateViabilityTimecourse();
+        try {
+        const groups = parseViabilityRows($("va-data").value);
+        const blankName = $("va-blank-group").value.trim();
+        const controlName = $("va-control-group").value.trim();
+        const effectorName = $("va-effector-group").value.trim();
+        const spontaneousName = $("va-spontaneous-group").value.trim();
+        const maxName = $("va-max-group").value.trim();
+        const testMode = $("va-test-mode").value;
+        const subtractEffector = $("va-subtract-effector").checked;
+
+        const blankGroup = viabilityFindGroup(groups, blankName);
+        const controlGroup = viabilityFindGroup(groups, controlName);
+        const effectorGroup = viabilityFindGroup(groups, effectorName);
+        const spontaneousGroup = viabilityFindGroup(groups, spontaneousName);
+        const maxGroup = viabilityFindGroup(groups, maxName);
+        const blankMean = blankGroup ? mean(blankGroup.values) : 0;
+        const effectorBackground = subtractEffector && effectorGroup ? mean(effectorGroup.values) - blankMean : 0;
+        const special = new Set([blankName, effectorName, spontaneousName, maxName].filter(Boolean).map(qpaNorm));
+
+        if (!groups.length) {
+          vaLastCsv = "";
+          $("va-download").disabled = true;
+          setResult("va-result", "<p class=\"result-title\">没有可用读数</p><div class=\"notice danger\">请按“组名, 复孔1, 复孔2...”格式粘贴数据。</div>", "danger");
+          return false;
+        }
+
+        let primaryLabel = "存活率 %";
+        let secondaryLabel = "抑制率 %";
+        let controlValues = [];
+        let results = [];
+        const warnings = [];
+
+        if (method === "viability") {
+          if (!controlGroup) throw new Error("CCK8/MTT 需要有效的对照组。");
+          const controlCorrected = mean(controlGroup.values.map((value) => value - blankMean));
+          if (!isFinite(controlCorrected) || controlCorrected === 0) throw new Error("对照组扣空白后的均值不能为 0。");
+          results = groups.filter((group) => !special.has(qpaNorm(group.name))).map((group) => {
+            const primaryValues = group.values.map((value) => (value - blankMean) / controlCorrected * 100);
+            const secondaryValues = primaryValues.map((value) => 100 - value);
+            return { group, primaryValues, secondaryValues };
+          });
+          controlValues = results.find((entry) => qpaNorm(entry.group.name) === qpaNorm(controlGroup.name))?.primaryValues || [];
+        } else if (method === "adcc-viability") {
+          if (!controlGroup) throw new Error("ADCC 存活读数法需要 Target only / 对照组。");
+          const targetControl = mean(controlGroup.values.map((value) => value - blankMean));
+          if (!isFinite(targetControl) || targetControl === 0) throw new Error("Target only 对照扣空白后的均值不能为 0。");
+          primaryLabel = "ADCC杀伤率 %";
+          secondaryLabel = "剩余存活率 %";
+          results = groups.filter((group) => !special.has(qpaNorm(group.name))).map((group) => {
+            const isControl = qpaNorm(group.name) === qpaNorm(controlGroup.name);
+            const primaryValues = group.values.map((value) => {
+              const corrected = value - blankMean - (isControl ? 0 : effectorBackground);
+              return (1 - corrected / targetControl) * 100;
+            });
+            const secondaryValues = primaryValues.map((value) => 100 - value);
+            return { group, primaryValues, secondaryValues };
+          });
+          controlValues = results.find((entry) => qpaNorm(entry.group.name) === qpaNorm(controlGroup.name))?.primaryValues || [];
+          if (subtractEffector && effectorName && !effectorGroup) warnings.push("已勾选扣除 effector-only 背景，但没有找到对应组名。");
+        } else {
+          if (!spontaneousGroup || !maxGroup) throw new Error("ADCC/LDH 释放法需要自发释放组和最大裂解组。");
+          const spontaneous = mean(spontaneousGroup.values.map((value) => value - blankMean));
+          const maximum = mean(maxGroup.values.map((value) => value - blankMean));
+          const denom = maximum - spontaneous;
+          if (!isFinite(denom) || denom === 0) throw new Error("最大裂解与自发释放扣空白后的差值不能为 0。");
+          primaryLabel = "ADCC/LDH杀伤率 %";
+          secondaryLabel = "未裂解比例 %";
+          results = groups.filter((group) => !special.has(qpaNorm(group.name))).map((group) => {
+            const primaryValues = group.values.map((value) => (value - blankMean - effectorBackground - spontaneous) / denom * 100);
+            const secondaryValues = primaryValues.map((value) => 100 - value);
+            return { group, primaryValues, secondaryValues };
+          });
+          const controlEntry = results.find((entry) => qpaNorm(entry.group.name) === qpaNorm(controlName));
+          controlValues = controlEntry ? controlEntry.primaryValues : [];
+          if (subtractEffector && effectorName && !effectorGroup) warnings.push("已勾选扣除 effector-only 背景，但没有找到对应组名。");
+        }
+
+        const finalResults = results.map((entry) => {
+          const p = controlValues.length && qpaNorm(entry.group.name) !== qpaNorm(controlName)
+            ? qpaTTest(entry.primaryValues, controlValues, testMode)
+            : { p: qpaNorm(entry.group.name) === qpaNorm(controlName) ? 1 : NaN };
+          return {
+            name: entry.group.name,
+            rawMean: mean(entry.group.values),
+            rawSd: sd(entry.group.values),
+            primaryValues: entry.primaryValues,
+            primaryMean: mean(entry.primaryValues),
+            primarySd: sd(entry.primaryValues),
+            primarySem: qpaSem(entry.primaryValues),
+            secondaryMean: mean(entry.secondaryValues),
+            pValue: p.p,
+            pStars: qpaPStars(p.p)
+          };
+        });
+
+        if (!finalResults.length) throw new Error("没有可输出的实验组，请检查空白组、对照组和特殊组名设置。");
+
+        const csvRows = [
+          ["组名", "原始均值", "原始SD", primaryLabel, "SD", "SEM", secondaryLabel, "P value", "显著性"],
+          ...finalResults.map((entry) => [
+            entry.name,
+            fmt(entry.rawMean, 6),
+            fmt(entry.rawSd, 6),
+            fmt(entry.primaryMean, 6),
+            fmt(entry.primarySd, 6),
+            fmt(entry.primarySem, 6),
+            fmt(entry.secondaryMean, 6),
+            isFinite(entry.pValue) ? entry.pValue : "",
+            entry.pStars
+          ]),
+          [],
+          ["Prism column data"],
+          finalResults.map((entry) => entry.name),
+          ...Array.from({ length: Math.max(...finalResults.map((entry) => entry.primaryValues.length)) }, (_, index) => finalResults.map((entry) => isFinite(entry.primaryValues[index]) ? entry.primaryValues[index] : ""))
+        ];
+        vaLastCsv = rowsToCsv(csvRows);
+        $("va-download").disabled = false;
+
+        let html = `
+          <p class="result-title">细胞活性 / ADCC 分析结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmtInt(groups.length)}</strong><span>读数组数</span></div>
+            <div class="metric"><strong>${fmt(blankMean, 4)}</strong><span>空白均值</span></div>
+            <div class="metric"><strong>${escapeHtml(primaryLabel)}</strong><span>主要输出指标</span></div>
+            <div class="metric"><strong>${controlName ? escapeHtml(controlName) : "未指定"}</strong><span>统计对照</span></div>
+          </div>
+          ${viabilityChartHtml(finalResults, primaryLabel)}
+          ${table(["组名", "原始均值", "原始SD", primaryLabel, "SD", "SEM", secondaryLabel, "P value", "显著性", "备注"], viabilityPercentRows(finalResults, controlName))}
+          <div class="notice ${warnings.length ? "warn" : "ok"}"><strong>QC：</strong>${warnings.length ? escapeHtml(warnings.join("；")) : "计算完成，未发现明显设置缺失。"}</div>
+        `;
+        setResult("va-result", html, warnings.length ? "warn" : "ok");
+        return true;
+        } catch (error) {
+          return vaShowError("细胞活性 / ADCC 分析失败", error.message);
+        }
+      }
+
+      function fillViabilityExample() {
+        const method = $("va-method").value;
+        if (method === "timecourse") {
+          $("va-data").value = "Cell_A, Blank, 0, 0.048, 0.050, 0.049\nCell_A, Blank, 24, 0.050, 0.051, 0.049\nCell_A, Blank, 48, 0.051, 0.050, 0.052\nCell_A, Blank, 72, 0.050, 0.052, 0.051\nCell_A, Blank, 96, 0.052, 0.051, 0.053\nCell_A, Control, 0, 0.46, 0.48, 0.47\nCell_A, Control, 24, 0.76, 0.79, 0.74\nCell_A, Control, 48, 1.22, 1.27, 1.19\nCell_A, Control, 72, 1.66, 1.70, 1.62\nCell_A, Control, 96, 1.82, 1.88, 1.78\nCell_A, Treat_1, 0, 0.45, 0.47, 0.46\nCell_A, Treat_1, 24, 0.56, 0.60, 0.58\nCell_A, Treat_1, 48, 0.78, 0.82, 0.80\nCell_A, Treat_1, 72, 0.98, 1.03, 1.00\nCell_A, Treat_1, 96, 1.18, 1.25, 1.21\nCell_A, Treat_2, 0, 0.44, 0.46, 0.45\nCell_A, Treat_2, 24, 0.48, 0.51, 0.49\nCell_A, Treat_2, 48, 0.56, 0.60, 0.58\nCell_A, Treat_2, 72, 0.80, 0.85, 0.83\nCell_A, Treat_2, 96, 0.98, 1.03, 1.00\nCell_B, Blank, 0, 0.046, 0.048, 0.047\nCell_B, Blank, 24, 0.048, 0.047, 0.049\nCell_B, Blank, 48, 0.049, 0.050, 0.048\nCell_B, Blank, 72, 0.049, 0.051, 0.050\nCell_B, Blank, 96, 0.050, 0.051, 0.049\nCell_B, Vector, 0, 0.44, 0.45, 0.43\nCell_B, Vector, 24, 0.56, 0.58, 0.55\nCell_B, Vector, 48, 0.70, 0.73, 0.69\nCell_B, Vector, 72, 0.96, 1.00, 0.94\nCell_B, Vector, 96, 1.16, 1.22, 1.18\nCell_B, Treat_A, 0, 0.43, 0.45, 0.44\nCell_B, Treat_A, 24, 0.62, 0.65, 0.61\nCell_B, Treat_A, 48, 0.88, 0.92, 0.86\nCell_B, Treat_A, 72, 1.36, 1.42, 1.38\nCell_B, Treat_A, 96, 1.62, 1.70, 1.66";
+          $("va-control-group").value = "Control, Vector";
+          $("va-effector-group").value = "";
+          $("va-spontaneous-group").value = "";
+          $("va-max-group").value = "";
+          $("va-y-label").value = "OD450";
+        } else if (method === "adcc-viability") {
+          $("va-data").value = "Blank, 0.050, 0.052, 0.049\nTarget_only, 0.900, 0.910, 0.895\nEffector_only, 0.110, 0.115, 0.108\nE:T_5_1, 0.660, 0.640, 0.655\nE:T_10_1, 0.430, 0.445, 0.420";
+          $("va-control-group").value = "Target_only";
+          $("va-effector-group").value = "Effector_only";
+          $("va-spontaneous-group").value = "";
+          $("va-max-group").value = "";
+        } else if (method === "adcc-release") {
+          $("va-data").value = "Blank, 0.050, 0.052, 0.049\nSpontaneous, 0.180, 0.176, 0.184\nMax, 1.200, 1.180, 1.210\nEffector_only, 0.090, 0.095, 0.092\nE:T_5_1, 0.410, 0.398, 0.422\nE:T_10_1, 0.680, 0.655, 0.672";
+          $("va-control-group").value = "";
+          $("va-effector-group").value = "Effector_only";
+          $("va-spontaneous-group").value = "Spontaneous";
+          $("va-max-group").value = "Max";
+        } else {
+          $("va-data").value = "Blank, 0.050, 0.052, 0.049\nControl, 0.820, 0.840, 0.835\nDrug_1, 0.610, 0.625, 0.618\nDrug_2, 0.360, 0.372, 0.355";
+          $("va-control-group").value = "Control";
+          $("va-effector-group").value = "";
+          $("va-spontaneous-group").value = "";
+          $("va-max-group").value = "";
+        }
+        $("va-blank-group").value = "Blank";
+        calculateViability();
+      }
+
+      function downloadViabilityCsv() {
+        downloadCsv("cell_viability_adcc_prism.csv", vaLastCsv);
       }
 
       function calculateRT(samples) {
@@ -4750,6 +5450,15 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("seed-example").addEventListener("click", fillSeedingExample);
         $("drug-calc").addEventListener("click", calculateDrugGradient);
         $("drug-example").addEventListener("click", fillDrugExample);
+        $("va-calc").addEventListener("click", calculateViability);
+        $("va-example").addEventListener("click", fillViabilityExample);
+        $("va-download").addEventListener("click", downloadViabilityCsv);
+        $("va-method").addEventListener("change", () => {
+          vaLastCsv = "";
+          $("va-download").disabled = true;
+          $("va-result").className = "result";
+          $("va-result").innerHTML = "";
+        });
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("mm-calc").addEventListener("click", calculateMasterMix);
@@ -4799,7 +5508,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       qpaUpdateCompareModeUi();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "seeding", "drug", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "virus"].includes(initialTab)) {
+      if (["cell", "seeding", "drug", "viability", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
