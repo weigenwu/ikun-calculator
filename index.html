@@ -1448,7 +1448,7 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
             <div>
               <label for="va-plate-image">上传读板仪照片，可选</label>
               <input id="va-plate-image" type="file" accept="image/*" />
-              <div id="va-plate-preview" class="reader-preview" style="margin-top:10px;">上传照片后在这里预览。若浏览器支持本地文字识别，可尝试自动读取数字。</div>
+              <div id="va-plate-preview" class="reader-preview" style="margin-top:10px;">上传照片后在这里预览。网页会先尝试浏览器原生 OCR，不支持时改用内置离线 OCR。</div>
             </div>
             <div>
               <label for="va-plate-text">识别文本 / 读板文本</label>
@@ -1461,7 +1461,7 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
             <button class="action secondary" type="button" id="va-plate-parse">解析为 96 孔板</button>
             <button class="action secondary" type="button" id="va-plate-clear">清空读板</button>
           </div>
-          <div id="va-plate-status" class="notice ok">提示：纯本地网页无法保证所有照片都能 OCR 成功，建议优先使用仪器导出的报告或手机系统 OCR 文本；孔位选择和后续计算会在本地完成。</div>
+          <div id="va-plate-status" class="notice ok">提示：OCR 会在本地运行；第一次使用内置离线 OCR 会加载本仓库里的识别文件，速度会慢一些。识别后请核对文本再解析为孔板。</div>
           <div class="plate-editor">
             <div class="plate-grid-wrap">
               <div id="va-plate-grid" class="plate-grid" aria-label="细胞活性或BCA 96孔板读数"></div>
@@ -2197,6 +2197,8 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       let qmeLastPrismCsv = "";
       let vaLastCsv = "";
       let vaPlateImageUrl = "";
+      let vaTesseractPromise = null;
+      let vaTesseractWorker = null;
       const vaPlateWells = new Map();
       const vaPlateSelectedWells = new Set();
       let qmePrimaryWell = "A1";
@@ -3425,24 +3427,33 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       }
 
       function vaPlateNumbersFromLine(line) {
-        return (line.match(/-?\d+\.\d+/g) || []).map((value) => parseFloat(value)).filter((value) => isFinite(value));
+        const normalized = String(line || "")
+          .replace(/[Oo](?=[\.,]?\d)/g, "0")
+          .replace(/(?<=\d)[Oo]/g, "0");
+        return (normalized.match(/-?(?:\d+[\.,]\d+|\.\d+)/g) || [])
+          .map((value) => parseFloat(value.replace(",", ".").replace(/^\./, "0.")))
+          .filter((value) => isFinite(value));
       }
 
       function vaPlateParseText(text) {
         const values = new Map();
+        const unlabeledRows = [];
         splitLines(text).forEach((line) => {
           const rowMatch = line.match(/^\s*([A-Ha-h])\b/);
           const nums = vaPlateNumbersFromLine(line);
-          if (rowMatch && nums.length) {
+          if (rowMatch && nums.length >= 8) {
             const row = rowMatch[1].toUpperCase();
             nums.slice(0, 12).forEach((value, index) => values.set(`${row}${index + 1}`, value));
+          } else if (nums.length >= 10) {
+            unlabeledRows.push(nums.slice(0, 12));
           }
         });
-        if (!values.size) {
-          const nums = vaPlateNumbersFromLine(text);
-          if (nums.length >= 96) {
-            qmeAllWellKeys().forEach((well, index) => values.set(well, nums[index]));
-          }
+        if (values.size < 60 && unlabeledRows.length >= 8) {
+          values.clear();
+          unlabeledRows.slice(0, 8).forEach((nums, rowIndex) => {
+            const row = String.fromCharCode(65 + rowIndex);
+            nums.slice(0, 12).forEach((value, index) => values.set(`${row}${index + 1}`, value));
+          });
         }
         return values;
       }
@@ -3450,7 +3461,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       function vaPlateParseToGrid() {
         const values = vaPlateParseText($("va-plate-text").value);
         if (!values.size) {
-          setResult("va-plate-status", "<strong>没有解析到 96 孔板读数。</strong> 请检查文本里是否包含 A-H 行和小数读数。", "danger");
+          setResult("va-plate-status", "<strong>没有解析到 96 孔板读数。</strong> 解析器只接收 A-H 行，或连续 8 行且每行约 12 个小数的孔板表格数据；日期、450nm、按钮文字会被忽略。", "danger");
           return false;
         }
         vaPlateEnsureWells();
@@ -3459,8 +3470,42 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           vaPlateWells.set(well, { ...prev, value });
         });
         vaPlateRender();
-        setResult("va-plate-status", `<strong>已解析 ${values.size} 个孔位。</strong> 现在可以多选孔位并标记为空白、对照、实验组、BCA 标准品或样本。`, "ok");
+        setResult("va-plate-status", `<strong>已解析 ${values.size} 个孔位。</strong> 只保留孔板 A1-H12 数据；现在可以多选孔位并标记为空白、对照、实验组、BCA 标准品或样本。`, "ok");
         return true;
+      }
+
+      function vaPlateCropRect(width, height) {
+        return {
+          x: Math.round(width * 0.27),
+          y: Math.round(height * 0.24),
+          w: Math.round(width * 0.56),
+          h: Math.round(height * 0.49)
+        };
+      }
+
+      async function vaPlatePreparedOcrBlob(file) {
+        const bitmap = await createImageBitmap(file);
+        const crop = vaPlateCropRect(bitmap.width, bitmap.height);
+        const scale = Math.max(1.8, Math.min(3, 1700 / crop.w));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(crop.w * scale);
+        canvas.height = Math.round(crop.h * scale);
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < data.data.length; i += 4) {
+          const gray = data.data[i] * 0.299 + data.data[i + 1] * 0.587 + data.data[i + 2] * 0.114;
+          const contrasted = Math.max(0, Math.min(255, (gray - 128) * 1.45 + 128));
+          data.data[i] = contrasted;
+          data.data[i + 1] = contrasted;
+          data.data[i + 2] = contrasted;
+        }
+        ctx.putImageData(data, 0, 0);
+        return new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("图片预处理失败。")), "image/png");
+        });
       }
 
       async function vaPlateTryOcr() {
@@ -3470,20 +3515,87 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           return false;
         }
         if (!("TextDetector" in window)) {
-          setResult("va-plate-status", "<strong>当前浏览器没有开放本地 TextDetector OCR。</strong> 可以用手机/微信/系统相册的文字识别复制结果，再粘贴到右侧文本框。", "warn");
-          return false;
+          return vaPlateTryTesseractOcr(file);
         }
         try {
-          const bitmap = await createImageBitmap(file);
+          const blob = await vaPlatePreparedOcrBlob(file);
+          const bitmap = await createImageBitmap(blob);
           const detector = new window.TextDetector();
           const blocks = await detector.detect(bitmap);
           const text = blocks.map((block) => block.rawValue || "").filter(Boolean).join("\n");
           $("va-plate-text").value = text;
-          setResult("va-plate-status", `<strong>已尝试本地识别 ${blocks.length} 段文字。</strong> 请核对文本后解析为孔板。`, blocks.length ? "ok" : "warn");
+          setResult("va-plate-status", `<strong>已尝试本地识别孔板区域 ${blocks.length} 段文字。</strong> 请核对文本后解析为孔板。`, blocks.length ? "ok" : "warn");
           if (text) vaPlateParseToGrid();
           return Boolean(text);
         } catch (error) {
           setResult("va-plate-status", `<strong>图片识别失败：</strong>${escapeHtml(error.message)}。可以改用仪器导出文本或手机 OCR 粘贴。`, "warn");
+          return false;
+        }
+      }
+
+      function vaLoadScript(src) {
+        return new Promise((resolve, reject) => {
+          if (document.querySelector(`script[data-local-src="${src}"]`)) {
+            resolve();
+            return;
+          }
+          const script = document.createElement("script");
+          script.src = src;
+          script.dataset.localSrc = src;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error(`无法加载 ${src}`));
+          document.head.appendChild(script);
+        });
+      }
+
+      async function vaEnsureTesseractWorker() {
+        if (vaTesseractWorker) return vaTesseractWorker;
+        if (!vaTesseractPromise) {
+          vaTesseractPromise = (async () => {
+            setResult("va-plate-status", "<strong>正在加载内置离线 OCR...</strong> 第一次会稍慢，所有文件都来自当前网站本地资源。", "ok");
+            await vaLoadScript("./ocr/tesseract.min.js");
+            if (!window.Tesseract?.createWorker) throw new Error("内置 OCR 引擎没有加载成功。");
+            const worker = await window.Tesseract.createWorker("eng", 1, {
+              workerPath: "./ocr/worker.min.js",
+              corePath: "./ocr/tesseract-core-lstm.wasm.js",
+              langPath: "./ocr",
+              gzip: true,
+              logger: (message) => {
+                if (message.status) {
+                  const pct = isFinite(message.progress) ? ` ${Math.round(message.progress * 100)}%` : "";
+                  setResult("va-plate-status", `<strong>内置离线 OCR：</strong>${escapeHtml(message.status)}${pct}`, "ok");
+                }
+              }
+            });
+            await worker.setParameters({
+              tessedit_char_whitelist: "ABCDEFGHabcdefgh0123456789. ",
+              preserve_interword_spaces: "1",
+              tessedit_pageseg_mode: window.Tesseract.PSM?.SPARSE_TEXT || "11"
+            });
+            vaTesseractWorker = worker;
+            return worker;
+          })();
+        }
+        return vaTesseractPromise;
+      }
+
+      async function vaPlateTryTesseractOcr(file) {
+        try {
+          const worker = await vaEnsureTesseractWorker();
+          setResult("va-plate-status", "<strong>正在用内置离线 OCR 识别孔板区域...</strong> 屏幕照片会受反光、倾斜和焦点影响，识别后请核对。", "ok");
+          const blob = await vaPlatePreparedOcrBlob(file);
+          const { data } = await worker.recognize(blob);
+          const text = data?.text || "";
+          $("va-plate-text").value = text;
+          if (text.trim()) {
+            setResult("va-plate-status", "<strong>内置离线 OCR 完成。</strong> 请核对右侧文本；如果 A-H 行错乱，可以手动修正后再解析。", "ok");
+            vaPlateParseToGrid();
+            return true;
+          }
+          setResult("va-plate-status", "<strong>内置离线 OCR 没有识别到有效文本。</strong> 可以换一张更清晰、正对屏幕的照片，或粘贴手机 OCR 结果。", "warn");
+          return false;
+        } catch (error) {
+          setResult("va-plate-status", `<strong>内置离线 OCR 失败：</strong>${escapeHtml(error.message)}。仍可用手机/微信/系统相册 OCR 后粘贴文本。`, "warn");
           return false;
         }
       }
@@ -3493,7 +3605,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         if (vaPlateImageUrl) URL.revokeObjectURL(vaPlateImageUrl);
         if (!file) {
           vaPlateImageUrl = "";
-          $("va-plate-preview").textContent = "上传照片后在这里预览。若浏览器支持本地文字识别，可尝试自动读取数字。";
+          $("va-plate-preview").textContent = "上传照片后在这里预览。网页会先尝试浏览器原生 OCR，不支持时改用内置离线 OCR。";
           return;
         }
         vaPlateImageUrl = URL.createObjectURL(file);
