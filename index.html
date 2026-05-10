@@ -1494,13 +1494,18 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
                   <label for="va-plate-standard">BCA 标准浓度</label>
                   <input id="va-plate-standard" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 0.5" />
                 </div>
+                <div>
+                  <label for="va-plate-ic50-conc">IC50 药物浓度</label>
+                  <input id="va-plate-ic50-conc" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 0.1" />
+                </div>
               </div>
               <div class="actions" style="margin-top:10px;">
                 <button class="action secondary small" type="button" id="va-plate-assign">标记所选孔</button>
                 <button class="action secondary small" type="button" id="va-plate-to-viability">生成到活性分析</button>
+                <button class="action secondary small" type="button" id="va-plate-to-ic50">生成到 IC50</button>
                 <button class="action secondary small" type="button" id="va-plate-to-bca">生成到 BCA/WB</button>
               </div>
-              <div class="help">点击孔位选择；按住 Ctrl/⌘ 可多选复孔，然后一次性标记为空白、对照、实验组、样本或标准品。</div>
+              <div class="help">点击孔位选择；按住 Ctrl/⌘ 可多选复孔，然后一次性标记为空白、对照、实验组、样本、IC50 浓度或标准品。</div>
             </div>
           </div>
         </div>
@@ -3789,7 +3794,7 @@ Treat_2, 3, 8800, 9850</textarea>
       }
 
       function vaPlateEmptyWell(well) {
-        return { well, value: NaN, role: "", group: "", dilution: NaN, standardConc: NaN };
+        return { well, value: NaN, role: "", group: "", dilution: NaN, standardConc: NaN, ic50Conc: NaN };
       }
 
       function vaPlateEnsureWells() {
@@ -3818,7 +3823,8 @@ Treat_2, 3, 8800, 9850</textarea>
             if (!isFinite(entry.value)) classes.push("empty");
             if (entry.role) classes.push(entry.role);
             if (vaPlateSelectedWells.has(well)) classes.push("active");
-            const roleText = entry.role ? `${vaPlateRoleLabel(entry.role)}${entry.group ? ` · ${entry.group}` : ""}` : "未标记";
+            const doseText = isFinite(entry.ic50Conc) && (entry.role === "sample" || entry.role === "control") ? ` · ${fmt(entry.ic50Conc, 4)}` : "";
+            const roleText = entry.role ? `${vaPlateRoleLabel(entry.role)}${entry.group ? ` · ${entry.group}` : ""}${doseText}` : "未标记";
             const valueText = isFinite(entry.value) ? fmt(entry.value, 3) : "空";
             parts.push(`<button class="${classes.join(" ")}" type="button" data-well="${well}"><strong>${well}</strong><span>${valueText}</span><small>${escapeHtml(roleText)}</small></button>`);
           }
@@ -3845,6 +3851,7 @@ Treat_2, 3, 8800, 9850</textarea>
           if (first.group) $("va-plate-group").value = first.group;
           if (isFinite(first.dilution)) $("va-plate-dilution").value = fmt(first.dilution, 4);
           if (isFinite(first.standardConc)) $("va-plate-standard").value = fmt(first.standardConc, 4);
+          if (isFinite(first.ic50Conc)) $("va-plate-ic50-conc").value = fmt(first.ic50Conc, 4);
         }
       }
 
@@ -4097,6 +4104,7 @@ Treat_2, 3, 8800, 9850</textarea>
         const groupInput = $("va-plate-group").value.trim();
         const dilution = parseFloat($("va-plate-dilution").value);
         const standardConc = parseFloat($("va-plate-standard").value);
+        const ic50Conc = parseFloat($("va-plate-ic50-conc").value);
         const group = role === "blank" ? "Blank" : role === "control" ? (groupInput || "Control") : groupInput;
         wells.forEach((well) => {
           const prev = vaPlateWells.get(well) || vaPlateEmptyWell(well);
@@ -4105,7 +4113,8 @@ Treat_2, 3, 8800, 9850</textarea>
             role,
             group: role === "ignore" ? "" : (group || role),
             dilution: isFinite(dilution) ? dilution : prev.dilution,
-            standardConc: isFinite(standardConc) ? standardConc : prev.standardConc
+            standardConc: isFinite(standardConc) ? standardConc : prev.standardConc,
+            ic50Conc: isFinite(ic50Conc) ? ic50Conc : (role === "control" ? 0 : prev.ic50Conc)
           });
         });
         vaPlateRender();
@@ -4160,6 +4169,65 @@ Treat_2, 3, 8800, 9850</textarea>
         $("va-control-group").value = data.control.keys().next().value || "";
         calculateViability();
         setResult("va-plate-status", "<strong>已生成到 CCK8 / MTT 相对存活率分析。</strong>", "ok");
+        return true;
+      }
+
+      function vaPlateToIc50() {
+        const data = vaPlateCollectByRole();
+        const seriesMap = new Map();
+        let missingDose = 0;
+
+        data.sample.forEach((entries, group) => {
+          const series = group || "Drug_1";
+          if (!seriesMap.has(series)) seriesMap.set(series, new Map());
+          const byConc = seriesMap.get(series);
+          entries.forEach((entry) => {
+            if (!isFinite(entry.ic50Conc)) {
+              missingDose += 1;
+              return;
+            }
+            if (!byConc.has(entry.ic50Conc)) byConc.set(entry.ic50Conc, []);
+            byConc.get(entry.ic50Conc).push(entry.value);
+          });
+        });
+
+        if (!seriesMap.size) {
+          setResult("va-plate-status", "<strong>没有可生成 IC50 的样本孔。</strong> 请把药物处理孔标记为“实验组/样本”，并填写 IC50 药物浓度。", "warn");
+          return false;
+        }
+
+        const controlGroups = Array.from(data.control.entries());
+        const singleControl = controlGroups.length === 1 ? controlGroups[0][1] : null;
+        const sharedControl = data.control.get("Control") || singleControl;
+        const lines = [];
+
+        seriesMap.forEach((byConc, series) => {
+          const matchedControl = data.control.get(series) || sharedControl || [];
+          const controlValues = matchedControl.map((entry) => entry.value).filter((value) => isFinite(value));
+          if (controlValues.length && !byConc.has(0)) {
+            lines.push(`${series}, 0, ${controlValues.map((value) => fmt(value, 4)).join(", ")}`);
+          }
+          Array.from(byConc.entries())
+            .sort((a, b) => a[0] - b[0])
+            .forEach(([conc, values]) => {
+              if (!values.length) return;
+              lines.push(`${series}, ${fmt(conc, 6)}, ${values.map((value) => fmt(value, 4)).join(", ")}`);
+            });
+        });
+
+        if (!lines.length) {
+          setResult("va-plate-status", "<strong>IC50 数据为空。</strong> 请检查是否填写了药物浓度，并且读数已经解析到孔板。", "warn");
+          return false;
+        }
+
+        $("ic-input-mode").value = "raw";
+        $("ic-control-conc").value = "0";
+        $("ic-blank").value = data.blank.length ? data.blank.map((value) => fmt(value, 4)).join(", ") : "";
+        $("ic-data").value = lines.join("\n");
+        activateTab("ic50", true);
+        calculateIc50();
+        const note = missingDose ? ` 有 ${missingDose} 个样本孔未填写浓度，已跳过。` : "";
+        setResult("va-plate-status", `<strong>已生成到 IC50 药敏曲线。</strong> 空白、0 浓度对照和各浓度复孔已自动整理。${note}`, missingDose ? "warn" : "ok");
         return true;
       }
 
@@ -6663,6 +6731,7 @@ Treat_2, 3, 8800, 9850</textarea>
         });
         $("va-plate-assign").addEventListener("click", vaPlateAssignSelected);
         $("va-plate-to-viability").addEventListener("click", vaPlateToViability);
+        $("va-plate-to-ic50").addEventListener("click", vaPlateToIc50);
         $("va-plate-to-bca").addEventListener("click", vaPlateToBca);
         $("ic-calc").addEventListener("click", calculateIc50);
         $("ic-example").addEventListener("click", fillIc50Example);
