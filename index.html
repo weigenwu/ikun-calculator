@@ -1198,11 +1198,13 @@
       <button class="tab-button" type="button" data-tab="seeding" aria-controls="panel-seeding">细胞铺板</button>
       <button class="tab-button" type="button" data-tab="drug" aria-controls="panel-drug">药物梯度</button>
       <button class="tab-button" type="button" data-tab="viability" aria-controls="panel-viability">活性/ADCC</button>
+      <button class="tab-button" type="button" data-tab="ic50" aria-controls="panel-ic50">IC50药敏</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
       <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
       <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
       <button class="tab-button" type="button" data-tab="qmulti" aria-controls="panel-qmulti">qPCR结果增强</button>
       <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
+      <button class="tab-button" type="button" data-tab="wbdensity" aria-controls="panel-wbdensity">WB灰度</button>
       <button class="tab-button" type="button" data-tab="virus" aria-controls="panel-virus">慢病毒包装</button>
     </nav>
 
@@ -1524,6 +1526,79 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
           <div class="section-title">ADCC / LDH 释放法</div>
           <div><span class="formula">杀伤率% = (实验释放 - Effector背景 - Target自发释放) / (Target最大裂解 - Target自发释放) × 100</span></div>
           <div class="help">不同试剂盒公式可能略有差异；这里是常用数据处理框架，正式记录请按你实际试剂盒说明书核对。</div>
+        </details>
+      </section>
+
+      <section id="panel-ic50" class="tool-panel" data-panel="ic50">
+        <div class="module-head">
+          <div>
+            <h2>IC50 / 药物敏感性曲线计算器</h2>
+            <p class="module-note">粘贴 CCK8/MTT 药物浓度梯度读数，自动扣空白、归一化为抑制率，估算 IC50，绘制 log 浓度曲线并导出 Prism XY CSV。</p>
+          </div>
+          <div class="quick-note">适合从 CCK8 数据继续分析药敏曲线，不覆盖原来的活性/ADCC模块。</div>
+        </div>
+
+        <h3>一、浓度梯度数据</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="ic-data">药物浓度与复孔</label>
+            <textarea id="ic-data">Drug_A, 0, 0.860, 0.842, 0.855
+Drug_A, 0.01, 0.820, 0.803, 0.812
+Drug_A, 0.03, 0.745, 0.730, 0.738
+Drug_A, 0.1, 0.610, 0.592, 0.603
+Drug_A, 0.3, 0.410, 0.398, 0.405
+Drug_A, 1, 0.250, 0.238, 0.244
+Drug_A, 3, 0.160, 0.150, 0.155
+Drug_A, 10, 0.105, 0.098, 0.101</textarea>
+            <div class="help">格式：药物/系列名, 浓度, 复孔1, 复孔2。浓度为 0 的行作为未处理对照；多个药物可混在同一表里。</div>
+          </div>
+          <div class="panel">
+            <div class="grid">
+              <div>
+                <label for="ic-input-mode">输入类型</label>
+                <select id="ic-input-mode">
+                  <option value="raw">原始 OD / 发光读数</option>
+                  <option value="viability">已是存活率 %</option>
+                  <option value="inhibition">已是抑制率 %</option>
+                </select>
+              </div>
+              <div>
+                <label for="ic-blank">空白读数</label>
+                <input id="ic-blank" type="text" value="0.050, 0.052, 0.049" />
+                <div class="help">原始读数模式会扣空白；百分比模式可留空。</div>
+              </div>
+              <div>
+                <label for="ic-control-conc">对照浓度</label>
+                <input id="ic-control-conc" type="number" step="any" inputmode="decimal" value="0" />
+              </div>
+              <div>
+                <label for="ic-unit">浓度单位</label>
+                <input id="ic-unit" type="text" value="µM" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="ic-calc">计算 IC50</button>
+          <button class="action secondary" type="button" id="ic-example">填入示例</button>
+          <button class="action secondary" type="button" id="ic-download" disabled>导出 Prism XY CSV</button>
+        </div>
+
+        <div id="ic-result" class="result" aria-live="polite"></div>
+        <div id="ic-chart-box" class="result" aria-live="polite" style="display:none;">
+          <p class="result-title">药敏曲线</p>
+          <div class="chart-wrap">
+            <canvas id="ic-chart" class="wide-chart" width="1080" height="460"></canvas>
+          </div>
+        </div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div><span class="formula">原始读数模式：存活率% = (读数 - 空白均值) / (0浓度对照均值 - 空白均值) × 100</span></div>
+          <div><span class="formula">抑制率% = 100 - 存活率%</span></div>
+          <div><span class="formula">IC50 = 在 log10(浓度) 上对 50% 抑制率做线性插值估算</span></div>
+          <div class="help">如果曲线没有跨过 50% 抑制率，网页会提示无法估算。正式发表前建议在 Prism 中进一步做 4PL 非线性拟合。</div>
         </details>
       </section>
 
@@ -2097,6 +2172,87 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         </details>
       </section>
 
+      <section id="panel-wbdensity" class="tool-panel" data-panel="wbdensity">
+        <div class="module-head">
+          <div>
+            <h2>WB 灰度归一化分析计算器</h2>
+            <p class="module-note">输入 ImageJ 等软件得到的目的条带和内参条带灰度，自动计算目的/内参、对照组归一化、P 值、柱状图和 Prism CSV。</p>
+          </div>
+          <div class="quick-note">这是 WB 结果分析板块，和 BCA/WB 上样量计算互不覆盖。</div>
+        </div>
+
+        <h3>一、灰度数据</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="wbg-data">条带灰度表</label>
+            <textarea id="wbg-data">Control, 1, 12800, 9600
+Control, 2, 13250, 9900
+Control, 3, 12650, 9480
+Treat_1, 1, 20500, 10100
+Treat_1, 2, 19800, 9900
+Treat_1, 3, 21200, 10350
+Treat_2, 1, 8600, 9700
+Treat_2, 2, 9100, 10050
+Treat_2, 3, 8800, 9850</textarea>
+            <div class="help">格式：组名, 重复/泳道, 目的条带灰度, 内参条带灰度。每行对应一个生物学重复或泳道。</div>
+          </div>
+          <div class="panel">
+            <div class="grid">
+              <div>
+                <label for="wbg-target-name">目的蛋白</label>
+                <input id="wbg-target-name" type="text" value="Target" />
+              </div>
+              <div>
+                <label for="wbg-ref-name">内参蛋白</label>
+                <input id="wbg-ref-name" type="text" value="ACTB / GAPDH" />
+              </div>
+              <div>
+                <label for="wbg-control-group">对照组</label>
+                <input id="wbg-control-group" type="text" value="Control" />
+              </div>
+              <div>
+                <label for="wbg-bg-target">目的条带背景，可选</label>
+                <input id="wbg-bg-target" type="number" step="any" inputmode="decimal" value="0" />
+              </div>
+              <div>
+                <label for="wbg-bg-ref">内参条带背景，可选</label>
+                <input id="wbg-bg-ref" type="number" step="any" inputmode="decimal" value="0" />
+              </div>
+              <div>
+                <label for="wbg-test-mode">统计检验</label>
+                <select id="wbg-test-mode">
+                  <option value="welch">Welch t-test（默认）</option>
+                  <option value="student">Student t-test</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="wbg-calc">分析 WB 灰度</button>
+          <button class="action secondary" type="button" id="wbg-example">填入示例</button>
+          <button class="action secondary" type="button" id="wbg-download" disabled>导出 Prism CSV</button>
+        </div>
+
+        <div id="wbg-result" class="result" aria-live="polite"></div>
+        <div id="wbg-chart-box" class="result" aria-live="polite" style="display:none;">
+          <p class="result-title">WB 相对灰度柱状图</p>
+          <div class="chart-wrap">
+            <canvas id="wbg-chart" width="920" height="430"></canvas>
+          </div>
+        </div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div><span class="formula">校正目的灰度 = 目的条带灰度 - 目的背景</span></div>
+          <div><span class="formula">校正内参灰度 = 内参条带灰度 - 内参背景</span></div>
+          <div><span class="formula">归一化灰度 = 校正目的灰度 / 校正内参灰度</span></div>
+          <div><span class="formula">相对表达 = 归一化灰度 / 对照组归一化灰度均值</span></div>
+          <div class="help">建议把每个独立生物学重复作为一行；同一膜上的技术重复可以先取均值再填入。</div>
+        </details>
+      </section>
+
       <section id="panel-virus" class="tool-panel" data-panel="virus">
         <div class="module-head">
           <div>
@@ -2197,6 +2353,8 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       let qmeLastSummaryCsv = "";
       let qmeLastPrismCsv = "";
       let vaLastCsv = "";
+      let icLastCsv = "";
+      let wbgLastCsv = "";
       let vaPlateImageUrl = "";
       let vaPlateScanUrl = "";
       let vaTesseractPromise = null;
@@ -3349,6 +3507,275 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
 
       function downloadViabilityCsv() {
         downloadCsv("cell_viability_adcc_prism.csv", vaLastCsv);
+      }
+
+      function parseIc50Rows(text) {
+        return splitLines(text).map((line, index) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length < 3) return null;
+          const firstNumber = parseFloat(parts[0]);
+          const series = isFinite(firstNumber) ? "Drug_1" : parts[0];
+          const conc = isFinite(firstNumber) ? firstNumber : parseFloat(parts[1]);
+          const values = (isFinite(firstNumber) ? parts.slice(1) : parts.slice(2)).map((value) => parseFloat(value)).filter((value) => isFinite(value));
+          if (!isFinite(conc) || !values.length) return null;
+          return { series, conc, values, raw: line, index };
+        }).filter(Boolean);
+      }
+
+      function icGroupRows(rows) {
+        const map = new Map();
+        rows.forEach((row) => {
+          const key = row.series || "Drug_1";
+          if (!map.has(key)) map.set(key, []);
+          map.get(key).push(row);
+        });
+        return Array.from(map.entries()).map(([series, entries]) => ({ series, entries }));
+      }
+
+      function icEstimateIc50(points) {
+        const sorted = points.filter((point) => point.conc > 0 && isFinite(point.inhibitionMean)).sort((a, b) => a.conc - b.conc);
+        for (let i = 1; i < sorted.length; i += 1) {
+          const a = sorted[i - 1];
+          const b = sorted[i];
+          if ((a.inhibitionMean - 50) * (b.inhibitionMean - 50) <= 0 && a.inhibitionMean !== b.inhibitionMean) {
+            const la = Math.log10(a.conc);
+            const lb = Math.log10(b.conc);
+            const ratio = (50 - a.inhibitionMean) / (b.inhibitionMean - a.inhibitionMean);
+            return Math.pow(10, la + ratio * (lb - la));
+          }
+        }
+        return NaN;
+      }
+
+      function icBuildPrismCsv(analyses, unit) {
+        const rows = [["Prism XY data"], ["Y", "Inhibition %"], ["Unit", unit]];
+        analyses.forEach((analysis) => {
+          rows.push([], ["Series", analysis.series]);
+          const maxN = Math.max(...analysis.points.map((point) => point.inhibitionValues.length));
+          rows.push(["Concentration", ...Array.from({ length: maxN }, (_, index) => `${analysis.series} rep${index + 1}`)]);
+          analysis.points.forEach((point) => {
+            rows.push([point.conc, ...Array.from({ length: maxN }, (_, index) => isFinite(point.inhibitionValues[index]) ? point.inhibitionValues[index] : "")]);
+          });
+        });
+        rows.push([], ["Summary"], ["Series", "IC50", "Unit", "Status"]);
+        analyses.forEach((analysis) => rows.push([analysis.series, isFinite(analysis.ic50) ? analysis.ic50 : "", unit, analysis.status]));
+        return rowsToCsv(rows);
+      }
+
+      function icDrawChart(analyses, unit) {
+        const box = $("ic-chart-box");
+        const canvas = $("ic-chart");
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        const colors = ["#08766d", "#d99022", "#5279b7", "#d23f57", "#56a36c", "#b47cc7"];
+        const allPositive = analyses.flatMap((analysis) => analysis.points.filter((point) => point.conc > 0));
+        if (!allPositive.length) return;
+        box.style.display = "block";
+        box.className = "result ok";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const pad = { l: 76, r: 34, t: 38, b: 78 };
+        const w = canvas.width - pad.l - pad.r;
+        const h = canvas.height - pad.t - pad.b;
+        const minLog = Math.floor(Math.min(...allPositive.map((point) => Math.log10(point.conc))));
+        const maxLog = Math.ceil(Math.max(...allPositive.map((point) => Math.log10(point.conc))));
+        const yMax = Math.max(100, Math.ceil(Math.max(...analyses.flatMap((analysis) => analysis.points.map((point) => point.inhibitionMean + point.inhibitionSem)), 100) / 20) * 20);
+        const xFor = (conc) => pad.l + ((Math.log10(conc) - minLog) / Math.max(1, maxLog - minLog)) * w;
+        const yFor = (value) => pad.t + h - (Math.max(0, value) / yMax) * h;
+
+        ctx.strokeStyle = "#cfd8d6";
+        ctx.lineWidth = 1;
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "#607177";
+        for (let i = 0; i <= 5; i += 1) {
+          const yVal = yMax * i / 5;
+          const y = yFor(yVal);
+          ctx.beginPath();
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(pad.l + w, y);
+          ctx.stroke();
+          ctx.fillText(fmt(yVal, 0), 24, y + 4);
+        }
+        for (let log = minLog; log <= maxLog; log += 1) {
+          const conc = Math.pow(10, log);
+          const x = xFor(conc);
+          ctx.strokeStyle = "#dfe7e5";
+          ctx.beginPath();
+          ctx.moveTo(x, pad.t);
+          ctx.lineTo(x, pad.t + h);
+          ctx.stroke();
+          ctx.fillStyle = "#172326";
+          ctx.textAlign = "center";
+          ctx.fillText(`10^${log}`, x, pad.t + h + 22);
+        }
+        ctx.strokeStyle = "#172326";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad.l, pad.t);
+        ctx.lineTo(pad.l, pad.t + h);
+        ctx.lineTo(pad.l + w, pad.t + h);
+        ctx.stroke();
+        ctx.setLineDash([6, 5]);
+        ctx.strokeStyle = "#d23f57";
+        ctx.beginPath();
+        ctx.moveTo(pad.l, yFor(50));
+        ctx.lineTo(pad.l + w, yFor(50));
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        analyses.forEach((analysis, index) => {
+          const color = colors[index % colors.length];
+          const points = analysis.points.filter((point) => point.conc > 0).sort((a, b) => a.conc - b.conc);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          points.forEach((point, pointIndex) => {
+            const x = xFor(point.conc);
+            const y = yFor(point.inhibitionMean);
+            if (pointIndex === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+          points.forEach((point) => {
+            const x = xFor(point.conc);
+            const y = yFor(point.inhibitionMean);
+            const err = point.inhibitionSem / yMax * h;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y - err);
+            ctx.lineTo(x, y + err);
+            ctx.moveTo(x - 5, y - err);
+            ctx.lineTo(x + 5, y - err);
+            ctx.moveTo(x - 5, y + err);
+            ctx.lineTo(x + 5, y + err);
+            ctx.stroke();
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          });
+          if (isFinite(analysis.ic50) && analysis.ic50 > 0) {
+            const x = xFor(analysis.ic50);
+            ctx.setLineDash([5, 4]);
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x, yFor(50));
+            ctx.lineTo(x, pad.t + h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        });
+
+        ctx.fillStyle = "#172326";
+        ctx.font = "700 18px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("IC50 药物敏感性曲线", canvas.width / 2, 24);
+        ctx.font = "14px Arial";
+        ctx.fillText(`浓度 (${unit})`, pad.l + w / 2, canvas.height - 22);
+        ctx.save();
+        ctx.translate(22, pad.t + h / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("抑制率 %", 0, 0);
+        ctx.restore();
+      }
+
+      function calculateIc50() {
+        try {
+          const rows = parseIc50Rows($("ic-data").value);
+          const mode = $("ic-input-mode").value;
+          const blanks = parseNumbers($("ic-blank").value);
+          const blankMean = blanks.length ? mean(blanks) : 0;
+          const controlConc = parseFloat($("ic-control-conc").value);
+          const unit = $("ic-unit").value.trim() || "µM";
+          if (!rows.length) throw new Error("没有可用浓度梯度数据。");
+          const analyses = icGroupRows(rows).map(({ series, entries }) => {
+            const controlRows = entries.filter((entry) => Math.abs(entry.conc - controlConc) < 1e-12);
+            const controlValues = controlRows.flatMap((entry) => entry.values.map((value) => value - blankMean));
+            const controlMean = mean(controlValues);
+            if (mode === "raw" && (!controlValues.length || !isFinite(controlMean) || controlMean === 0)) {
+              throw new Error(`${series} 缺少有效 0 浓度对照，无法把原始读数换算为存活率。`);
+            }
+            const byConc = new Map();
+            entries.forEach((entry) => {
+              if (!byConc.has(entry.conc)) byConc.set(entry.conc, []);
+              byConc.get(entry.conc).push(...entry.values);
+            });
+            const points = Array.from(byConc.entries()).map(([conc, values]) => {
+              let viabilityValues;
+              let inhibitionValues;
+              if (mode === "raw") {
+                viabilityValues = values.map((value) => (value - blankMean) / controlMean * 100);
+                inhibitionValues = viabilityValues.map((value) => 100 - value);
+              } else if (mode === "viability") {
+                viabilityValues = values;
+                inhibitionValues = values.map((value) => 100 - value);
+              } else {
+                inhibitionValues = values;
+                viabilityValues = values.map((value) => 100 - value);
+              }
+              return {
+                conc,
+                rawValues: values,
+                viabilityValues,
+                inhibitionValues,
+                viabilityMean: mean(viabilityValues),
+                viabilitySd: sd(viabilityValues),
+                inhibitionMean: mean(inhibitionValues),
+                inhibitionSd: sd(inhibitionValues),
+                inhibitionSem: qpaSem(inhibitionValues)
+              };
+            }).sort((a, b) => a.conc - b.conc);
+            const ic50 = icEstimateIc50(points);
+            const status = isFinite(ic50) ? "OK" : "曲线未跨过 50% 抑制率";
+            return { series, points, ic50, status, controlMean };
+          });
+          const tableRows = analyses.flatMap((analysis) => analysis.points.map((point) => [
+            escapeHtml(analysis.series),
+            fmt(point.conc, 6),
+            fmt(point.viabilityMean, 3),
+            fmt(point.viabilitySd, 3),
+            fmt(point.inhibitionMean, 3),
+            fmt(point.inhibitionSd, 3),
+            fmt(point.inhibitionSem, 3),
+            fmtInt(point.inhibitionValues.length)
+          ]));
+          icLastCsv = icBuildPrismCsv(analyses, unit);
+          $("ic-download").disabled = !icLastCsv;
+          const warn = analyses.some((analysis) => !isFinite(analysis.ic50));
+          setResult("ic-result", `
+            <p class="result-title">IC50 计算结果</p>
+            <div class="metric-grid">
+              ${analyses.map((analysis) => `<div class="metric"><strong>${isFinite(analysis.ic50) ? `${fmt(analysis.ic50, 4)} ${escapeHtml(unit)}` : "未跨过50%"}</strong><span>${escapeHtml(analysis.series)} IC50</span></div>`).join("")}
+              <div class="metric"><strong>${fmt(blankMean, 4)}</strong><span>空白均值</span></div>
+            </div>
+            ${table(["系列", `浓度 ${unit}`, "存活率均值%", "存活率SD", "抑制率均值%", "抑制率SD", "SEM", "n"], tableRows)}
+            <div class="notice ${warn ? "warn" : "ok"}"><strong>QC：</strong>${warn ? "部分系列没有跨过 50% 抑制率，无法估算 IC50。" : "已按 log 浓度插值估算 IC50，并生成 Prism XY 数据。"}</div>
+          `, warn ? "warn" : "ok");
+          icDrawChart(analyses, unit);
+          return true;
+        } catch (error) {
+          icLastCsv = "";
+          $("ic-download").disabled = true;
+          $("ic-chart-box").style.display = "none";
+          setResult("ic-result", `<p class="result-title">IC50 计算失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
+          return false;
+        }
+      }
+
+      function fillIc50Example() {
+        $("ic-input-mode").value = "raw";
+        $("ic-blank").value = "0.050, 0.052, 0.049";
+        $("ic-control-conc").value = "0";
+        $("ic-unit").value = "µM";
+        $("ic-data").value = "Drug_A, 0, 0.860, 0.842, 0.855\nDrug_A, 0.01, 0.820, 0.803, 0.812\nDrug_A, 0.03, 0.745, 0.730, 0.738\nDrug_A, 0.1, 0.610, 0.592, 0.603\nDrug_A, 0.3, 0.410, 0.398, 0.405\nDrug_A, 1, 0.250, 0.238, 0.244\nDrug_A, 3, 0.160, 0.150, 0.155\nDrug_A, 10, 0.105, 0.098, 0.101";
+        calculateIc50();
+      }
+
+      function downloadIc50Csv() {
+        downloadCsv("ic50_prism_xy.csv", icLastCsv);
       }
 
       function vaPlateRoleLabel(role) {
@@ -5841,6 +6268,227 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         calculateBcaAll();
       }
 
+      function parseWbGrayRows(text) {
+        return splitLines(text).map((line, index) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length < 4) return null;
+          return {
+            group: parts[0],
+            lane: parts[1] || String(index + 1),
+            target: parseFloat(parts[2]),
+            ref: parseFloat(parts[3]),
+            raw: line
+          };
+        }).filter((row) => row && row.group && isFinite(row.target) && isFinite(row.ref));
+      }
+
+      function wbgGroupRows(rows) {
+        const map = new Map();
+        rows.forEach((row) => {
+          if (!map.has(row.group)) map.set(row.group, []);
+          map.get(row.group).push(row);
+        });
+        return Array.from(map.entries()).map(([group, entries]) => ({ group, entries }));
+      }
+
+      function wbgBuildCsv(groups) {
+        const maxN = Math.max(...groups.map((group) => group.relativeValues.length), 1);
+        const rows = [
+          ["Prism column data"],
+          groups.map((group) => group.group),
+          ...Array.from({ length: maxN }, (_, index) => groups.map((group) => isFinite(group.relativeValues[index]) ? group.relativeValues[index] : "")),
+          [],
+          ["Summary"],
+          ["Group", "n", "Normalized mean", "Relative mean", "SD", "SEM", "P value", "Stars"]
+        ];
+        groups.forEach((group) => rows.push([
+          group.group,
+          group.relativeValues.length,
+          fmt(group.normalizedMean, 6),
+          fmt(group.relativeMean, 6),
+          fmt(group.relativeSd, 6),
+          fmt(group.relativeSem, 6),
+          isFinite(group.pValue) ? group.pValue : "",
+          group.pStars
+        ]));
+        return rowsToCsv(rows);
+      }
+
+      function drawWbGrayChart(groups, targetName, refName) {
+        const box = $("wbg-chart-box");
+        const canvas = $("wbg-chart");
+        const ctx = canvas.getContext("2d");
+        box.style.display = "block";
+        box.className = "result ok";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const pad = { l: 72, r: 28, t: 42, b: 86 };
+        const w = canvas.width - pad.l - pad.r;
+        const h = canvas.height - pad.t - pad.b;
+        const maxY = Math.max(1.2, ...groups.map((group) => group.relativeMean + group.relativeSem)) * 1.25;
+        ctx.strokeStyle = "#cfd8d6";
+        ctx.lineWidth = 1;
+        ctx.fillStyle = "#607177";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "left";
+        for (let i = 0; i <= 5; i += 1) {
+          const yVal = maxY * i / 5;
+          const y = pad.t + h - yVal / maxY * h;
+          ctx.beginPath();
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(pad.l + w, y);
+          ctx.stroke();
+          ctx.fillText(fmt(yVal, 2), 18, y + 4);
+        }
+        ctx.strokeStyle = "#172326";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad.l, pad.t);
+        ctx.lineTo(pad.l, pad.t + h);
+        ctx.lineTo(pad.l + w, pad.t + h);
+        ctx.stroke();
+        const gap = w / Math.max(groups.length, 1);
+        const barW = Math.min(74, gap * 0.5);
+        groups.forEach((group, index) => {
+          const x = pad.l + gap * index + gap / 2;
+          const barH = group.relativeMean / maxY * h;
+          const y = pad.t + h - barH;
+          ctx.fillStyle = index === 0 ? "#08766d" : "#d99022";
+          ctx.fillRect(x - barW / 2, y, barW, barH);
+          const err = group.relativeSem / maxY * h;
+          ctx.strokeStyle = "#172326";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y - err);
+          ctx.lineTo(x, y + err);
+          ctx.moveTo(x - 12, y - err);
+          ctx.lineTo(x + 12, y - err);
+          ctx.stroke();
+          ctx.fillStyle = "#172326";
+          group.relativeValues.forEach((value, repIndex) => {
+            const jitter = (repIndex - (group.relativeValues.length - 1) / 2) * Math.min(9, barW / 6);
+            ctx.beginPath();
+            ctx.arc(x + jitter, pad.t + h - value / maxY * h, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.save();
+          ctx.translate(x, pad.t + h + 24);
+          ctx.rotate(-Math.PI / 7);
+          ctx.textAlign = "right";
+          ctx.font = "14px Arial";
+          ctx.fillText(group.group, 0, 0);
+          ctx.restore();
+          ctx.textAlign = "center";
+          ctx.font = "13px Arial";
+          ctx.fillText(group.pStars, x, Math.max(18, y - err - 14));
+        });
+        ctx.textAlign = "center";
+        ctx.font = "700 18px Arial";
+        ctx.fillStyle = "#172326";
+        ctx.fillText(`${targetName} / ${refName} 相对灰度`, canvas.width / 2, 24);
+        ctx.save();
+        ctx.translate(20, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = "14px Arial";
+        ctx.fillText("Relative expression", 0, 0);
+        ctx.restore();
+      }
+
+      function calculateWbGray() {
+        try {
+          const rows = parseWbGrayRows($("wbg-data").value);
+          const targetBg = parseFloat($("wbg-bg-target").value) || 0;
+          const refBg = parseFloat($("wbg-bg-ref").value) || 0;
+          const controlName = $("wbg-control-group").value.trim();
+          const testMode = $("wbg-test-mode").value;
+          const targetName = $("wbg-target-name").value.trim() || "Target";
+          const refName = $("wbg-ref-name").value.trim() || "Reference";
+          if (!rows.length) throw new Error("没有可用 WB 灰度数据。");
+          const processed = rows.map((row) => {
+            const target = row.target - targetBg;
+            const ref = row.ref - refBg;
+            return {
+              ...row,
+              correctedTarget: target,
+              correctedRef: ref,
+              normalized: ref > 0 ? target / ref : NaN
+            };
+          }).filter((row) => isFinite(row.normalized) && row.normalized > 0);
+          if (!processed.length) throw new Error("扣背景后没有有效的目的/内参比值。");
+          const groupedRaw = wbgGroupRows(processed);
+          const control = groupedRaw.find((group) => qpaNorm(group.group) === qpaNorm(controlName));
+          if (!control) throw new Error("没有找到对照组，请检查对照组名称。");
+          const controlMean = mean(control.entries.map((entry) => entry.normalized));
+          if (!isFinite(controlMean) || controlMean <= 0) throw new Error("对照组归一化均值无效。");
+          const controlRelativeValues = control.entries.map((entry) => entry.normalized / controlMean);
+          const groups = groupedRaw.map((group) => {
+            const normalizedValues = group.entries.map((entry) => entry.normalized);
+            const relativeValues = normalizedValues.map((value) => value / controlMean);
+            const p = qpaNorm(group.group) === qpaNorm(controlName) ? { p: 1 } : qpaTTest(relativeValues, controlRelativeValues, testMode);
+            return {
+              group: group.group,
+              entries: group.entries,
+              normalizedValues,
+              relativeValues,
+              normalizedMean: mean(normalizedValues),
+              normalizedSd: sd(normalizedValues),
+              relativeMean: mean(relativeValues),
+              relativeSd: sd(relativeValues),
+              relativeSem: qpaSem(relativeValues),
+              pValue: p.p,
+              pStars: qpaPStars(p.p)
+            };
+          });
+          const tableRows = groups.map((group) => [
+            escapeHtml(group.group),
+            fmtInt(group.relativeValues.length),
+            fmt(group.normalizedMean, 4),
+            fmt(group.normalizedSd, 4),
+            fmt(group.relativeMean, 4),
+            fmt(group.relativeSd, 4),
+            fmt(group.relativeSem, 4),
+            isFinite(group.pValue) ? fmt(group.pValue, 5) : "n/a",
+            escapeHtml(group.pStars)
+          ]);
+          wbgLastCsv = wbgBuildCsv(groups);
+          $("wbg-download").disabled = !wbgLastCsv;
+          setResult("wbg-result", `
+            <p class="result-title">WB 灰度分析结果</p>
+            <div class="metric-grid">
+              <div class="metric"><strong>${fmtInt(processed.length)}</strong><span>有效泳道/重复</span></div>
+              <div class="metric"><strong>${escapeHtml(controlName)}</strong><span>对照组设为 1</span></div>
+              <div class="metric"><strong>${escapeHtml(targetName)}</strong><span>目的蛋白</span></div>
+              <div class="metric"><strong>${escapeHtml(refName)}</strong><span>内参蛋白</span></div>
+            </div>
+            ${table(["组别", "n", "目的/内参均值", "目的/内参SD", "相对表达均值", "SD", "SEM", "P value", "显著性"], tableRows)}
+            <div class="notice ok"><strong>QC：</strong>已完成目的/内参归一化、对照组归一化和 Prism column 数据导出。</div>
+          `, "ok");
+          drawWbGrayChart(groups, targetName, refName);
+          return true;
+        } catch (error) {
+          wbgLastCsv = "";
+          $("wbg-download").disabled = true;
+          $("wbg-chart-box").style.display = "none";
+          setResult("wbg-result", `<p class="result-title">WB 灰度分析失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
+          return false;
+        }
+      }
+
+      function fillWbGrayExample() {
+        $("wbg-target-name").value = "Target";
+        $("wbg-ref-name").value = "ACTB / GAPDH";
+        $("wbg-control-group").value = "Control";
+        $("wbg-bg-target").value = "0";
+        $("wbg-bg-ref").value = "0";
+        $("wbg-data").value = "Control, 1, 12800, 9600\nControl, 2, 13250, 9900\nControl, 3, 12650, 9480\nTreat_1, 1, 20500, 10100\nTreat_1, 2, 19800, 9900\nTreat_1, 3, 21200, 10350\nTreat_2, 1, 8600, 9700\nTreat_2, 2, 9100, 10050\nTreat_2, 3, 8800, 9850";
+        calculateWbGray();
+      }
+
+      function downloadWbGrayCsv() {
+        downloadCsv("wb_density_prism.csv", wbgLastCsv);
+      }
+
       function calculateLentivirus() {
         const totalDnaUg = getNumber("lv-total-dna");
         const transferRatio = getNumber("lv-transfer-ratio");
@@ -6016,6 +6664,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("va-plate-assign").addEventListener("click", vaPlateAssignSelected);
         $("va-plate-to-viability").addEventListener("click", vaPlateToViability);
         $("va-plate-to-bca").addEventListener("click", vaPlateToBca);
+        $("ic-calc").addEventListener("click", calculateIc50);
+        $("ic-example").addEventListener("click", fillIc50Example);
+        $("ic-download").addEventListener("click", downloadIc50Csv);
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("mm-calc").addEventListener("click", calculateMasterMix);
@@ -6054,6 +6705,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         $("qme-prism-download").addEventListener("click", downloadQpcrMultiPrismCsv);
         $("bca-calc").addEventListener("click", calculateBcaAll);
         $("bca-example").addEventListener("click", fillBcaExample);
+        $("wbg-calc").addEventListener("click", calculateWbGray);
+        $("wbg-example").addEventListener("click", fillWbGrayExample);
+        $("wbg-download").addEventListener("click", downloadWbGrayCsv);
         $("lv-calc").addEventListener("click", calculateLentivirus);
         $("lv-example").addEventListener("click", fillLentivirusExample);
       }
@@ -6066,7 +6720,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       vaPlateRender();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "seeding", "drug", "viability", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "virus"].includes(initialTab)) {
+      if (["cell", "seeding", "drug", "viability", "ic50", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "wbdensity", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
