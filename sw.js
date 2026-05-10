@@ -1,4 +1,4 @@
-const CACHE_NAME = "w2g-lab-calculator-app-v9";
+const CACHE_NAME = "w2g-lab-calculator-app-v10";
 const APP_SHELL = [
   "./",
   "./index.html",
