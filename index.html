@@ -808,8 +808,28 @@
     }
 
     body.theme-night .plate-grid-wrap,
-    body.theme-night .well-editor {
+    body.theme-night .well-editor,
+    body.theme-night .reader-preview {
       background: rgba(20, 36, 40, 0.92);
+    }
+
+    .reader-preview {
+      min-height: 180px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: var(--muted);
+      padding: 10px;
+    }
+
+    .reader-preview img {
+      max-width: 100%;
+      max-height: 320px;
+      object-fit: contain;
+      border-radius: 8px;
     }
 
     .plate-grid {
@@ -866,6 +886,26 @@
 
     .plate-cell.ref {
       border-color: rgba(217, 144, 34, 0.5);
+    }
+
+    .plate-cell.blank {
+      border-color: rgba(79, 139, 255, 0.58);
+      background: rgba(79, 139, 255, 0.08);
+    }
+
+    .plate-cell.control {
+      border-color: rgba(8, 118, 109, 0.58);
+      background: rgba(8, 118, 109, 0.08);
+    }
+
+    .plate-cell.sample {
+      border-color: rgba(217, 144, 34, 0.58);
+      background: rgba(217, 144, 34, 0.1);
+    }
+
+    .plate-cell.standard {
+      border-color: rgba(160, 92, 198, 0.58);
+      background: rgba(160, 92, 198, 0.1);
     }
 
     .plate-cell.warn {
@@ -1402,6 +1442,66 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
           </div>
         </div>
 
+        <h3>二、图片 / 读板助手</h3>
+        <div class="panel">
+          <div class="two-col">
+            <div>
+              <label for="va-plate-image">上传读板仪照片，可选</label>
+              <input id="va-plate-image" type="file" accept="image/*" />
+              <div id="va-plate-preview" class="reader-preview" style="margin-top:10px;">上传照片后在这里预览。若浏览器支持本地文字识别，可尝试自动读取数字。</div>
+            </div>
+            <div>
+              <label for="va-plate-text">识别文本 / 读板文本</label>
+              <textarea id="va-plate-text" placeholder="可粘贴手机或微信 OCR 文本、仪器导出文本，或类似：&#10;A 0.043 0.043 0.047 ...&#10;B 0.045 1.353 1.118 ..."></textarea>
+              <div class="help">网页会优先识别 A-H 行和 12 列小数；如果只有连续 96 个小数，也会按 A1-H12 自动铺板。</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="action secondary" type="button" id="va-plate-ocr">尝试从图片识别</button>
+            <button class="action secondary" type="button" id="va-plate-parse">解析为 96 孔板</button>
+            <button class="action secondary" type="button" id="va-plate-clear">清空读板</button>
+          </div>
+          <div id="va-plate-status" class="notice ok">提示：纯本地网页无法保证所有照片都能 OCR 成功，建议优先使用仪器导出的报告或手机系统 OCR 文本；孔位选择和后续计算会在本地完成。</div>
+          <div class="plate-editor">
+            <div class="plate-grid-wrap">
+              <div id="va-plate-grid" class="plate-grid" aria-label="细胞活性或BCA 96孔板读数"></div>
+            </div>
+            <div class="well-editor">
+              <div id="va-plate-selection" class="notice ok" style="margin-top:0;">当前未选择孔位</div>
+              <div class="grid">
+                <div>
+                  <label for="va-plate-role">孔位类型</label>
+                  <select id="va-plate-role">
+                    <option value="sample">实验组 / 样本</option>
+                    <option value="control">对照组</option>
+                    <option value="blank">空白孔</option>
+                    <option value="standard">BCA 标准品</option>
+                    <option value="ignore">忽略</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="va-plate-group">组名 / 样本名</label>
+                  <input id="va-plate-group" type="text" value="Sample_1" />
+                </div>
+                <div>
+                  <label for="va-plate-dilution">BCA 样本稀释倍数</label>
+                  <input id="va-plate-dilution" type="number" min="0" step="any" inputmode="decimal" value="10" />
+                </div>
+                <div>
+                  <label for="va-plate-standard">BCA 标准浓度</label>
+                  <input id="va-plate-standard" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 0.5" />
+                </div>
+              </div>
+              <div class="actions" style="margin-top:10px;">
+                <button class="action secondary small" type="button" id="va-plate-assign">标记所选孔</button>
+                <button class="action secondary small" type="button" id="va-plate-to-viability">生成到活性分析</button>
+                <button class="action secondary small" type="button" id="va-plate-to-bca">生成到 BCA/WB</button>
+              </div>
+              <div class="help">点击孔位选择；按住 Ctrl/⌘ 可多选复孔，然后一次性标记为空白、对照、实验组、样本或标准品。</div>
+            </div>
+          </div>
+        </div>
+
         <div class="actions">
           <button class="action" type="button" id="va-calc">分析细胞活性 / ADCC</button>
           <button class="action secondary" type="button" id="va-example">填入示例</button>
@@ -1925,6 +2025,8 @@ Primer_2</textarea>
           <div class="quick-note">上胶当天只计算“已煮样 + 1× loading buffer”，不再计算加入 5× loading buffer 的体积。</div>
         </div>
 
+        <div class="notice ok">可在“活性/ADCC”的图片 / 读板助手里上传或解析 96 孔板读数，标记空白、标准品和样本后，一键生成到这里并拟合标准曲线。</div>
+
         <h3>一、BCA 标准曲线与 OD</h3>
         <div class="grid">
           <div>
@@ -2094,6 +2196,9 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       let qmeLastSummaryCsv = "";
       let qmeLastPrismCsv = "";
       let vaLastCsv = "";
+      let vaPlateImageUrl = "";
+      const vaPlateWells = new Map();
+      const vaPlateSelectedWells = new Set();
       let qmePrimaryWell = "A1";
       let qmeSelectedWells = new Set(["A1"]);
       let musicObjectUrl = "";
@@ -3240,6 +3345,287 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
 
       function downloadViabilityCsv() {
         downloadCsv("cell_viability_adcc_prism.csv", vaLastCsv);
+      }
+
+      function vaPlateRoleLabel(role) {
+        return {
+          blank: "空白",
+          control: "对照",
+          sample: "样本",
+          standard: "标准",
+          ignore: "忽略"
+        }[role] || "";
+      }
+
+      function vaPlateEmptyWell(well) {
+        return { well, value: NaN, role: "", group: "", dilution: NaN, standardConc: NaN };
+      }
+
+      function vaPlateEnsureWells() {
+        qmeAllWellKeys().forEach((well) => {
+          if (!vaPlateWells.has(well)) vaPlateWells.set(well, vaPlateEmptyWell(well));
+        });
+      }
+
+      function vaPlateWellValue(well) {
+        return vaPlateWells.get(well)?.value;
+      }
+
+      function vaPlateRender() {
+        const grid = $("va-plate-grid");
+        if (!grid) return;
+        vaPlateEnsureWells();
+        const parts = [`<div class="plate-label"></div>`];
+        for (let col = 1; col <= 12; col += 1) parts.push(`<div class="plate-label">${col}</div>`);
+        for (let rowIndex = 0; rowIndex < 8; rowIndex += 1) {
+          const rowLetter = String.fromCharCode(65 + rowIndex);
+          parts.push(`<div class="plate-label">${rowLetter}</div>`);
+          for (let col = 1; col <= 12; col += 1) {
+            const well = `${rowLetter}${col}`;
+            const entry = vaPlateWells.get(well) || vaPlateEmptyWell(well);
+            const classes = ["plate-cell"];
+            if (!isFinite(entry.value)) classes.push("empty");
+            if (entry.role) classes.push(entry.role);
+            if (vaPlateSelectedWells.has(well)) classes.push("active");
+            const roleText = entry.role ? `${vaPlateRoleLabel(entry.role)}${entry.group ? ` · ${entry.group}` : ""}` : "未标记";
+            const valueText = isFinite(entry.value) ? fmt(entry.value, 3) : "空";
+            parts.push(`<button class="${classes.join(" ")}" type="button" data-well="${well}"><strong>${well}</strong><span>${valueText}</span><small>${escapeHtml(roleText)}</small></button>`);
+          }
+        }
+        grid.innerHTML = parts.join("");
+        vaPlateUpdateSelection();
+      }
+
+      function vaPlateUpdateSelection() {
+        const wells = Array.from(vaPlateSelectedWells);
+        const status = $("va-plate-selection");
+        if (!status) return;
+        if (!wells.length) {
+          status.className = "notice ok";
+          status.textContent = "当前未选择孔位";
+          return;
+        }
+        const values = wells.map((well) => vaPlateWellValue(well)).filter((value) => isFinite(value));
+        status.className = "notice ok";
+        status.textContent = `已选择 ${wells.length} 个孔：${wells.slice(0, 10).join(", ")}${wells.length > 10 ? "..." : ""}；有效读数 ${values.length} 个。`;
+        const first = vaPlateWells.get(wells[0]);
+        if (first) {
+          if (first.role) $("va-plate-role").value = first.role;
+          if (first.group) $("va-plate-group").value = first.group;
+          if (isFinite(first.dilution)) $("va-plate-dilution").value = fmt(first.dilution, 4);
+          if (isFinite(first.standardConc)) $("va-plate-standard").value = fmt(first.standardConc, 4);
+        }
+      }
+
+      function vaPlateSelectWell(well, additive) {
+        if (!additive) vaPlateSelectedWells.clear();
+        if (vaPlateSelectedWells.has(well) && additive) vaPlateSelectedWells.delete(well);
+        else vaPlateSelectedWells.add(well);
+        vaPlateRender();
+      }
+
+      function vaPlateNumbersFromLine(line) {
+        return (line.match(/-?\d+\.\d+/g) || []).map((value) => parseFloat(value)).filter((value) => isFinite(value));
+      }
+
+      function vaPlateParseText(text) {
+        const values = new Map();
+        splitLines(text).forEach((line) => {
+          const rowMatch = line.match(/^\s*([A-Ha-h])\b/);
+          const nums = vaPlateNumbersFromLine(line);
+          if (rowMatch && nums.length) {
+            const row = rowMatch[1].toUpperCase();
+            nums.slice(0, 12).forEach((value, index) => values.set(`${row}${index + 1}`, value));
+          }
+        });
+        if (!values.size) {
+          const nums = vaPlateNumbersFromLine(text);
+          if (nums.length >= 96) {
+            qmeAllWellKeys().forEach((well, index) => values.set(well, nums[index]));
+          }
+        }
+        return values;
+      }
+
+      function vaPlateParseToGrid() {
+        const values = vaPlateParseText($("va-plate-text").value);
+        if (!values.size) {
+          setResult("va-plate-status", "<strong>没有解析到 96 孔板读数。</strong> 请检查文本里是否包含 A-H 行和小数读数。", "danger");
+          return false;
+        }
+        vaPlateEnsureWells();
+        values.forEach((value, well) => {
+          const prev = vaPlateWells.get(well) || vaPlateEmptyWell(well);
+          vaPlateWells.set(well, { ...prev, value });
+        });
+        vaPlateRender();
+        setResult("va-plate-status", `<strong>已解析 ${values.size} 个孔位。</strong> 现在可以多选孔位并标记为空白、对照、实验组、BCA 标准品或样本。`, "ok");
+        return true;
+      }
+
+      async function vaPlateTryOcr() {
+        const file = $("va-plate-image").files?.[0];
+        if (!file) {
+          setResult("va-plate-status", "<strong>请先上传照片。</strong>", "warn");
+          return false;
+        }
+        if (!("TextDetector" in window)) {
+          setResult("va-plate-status", "<strong>当前浏览器没有开放本地 TextDetector OCR。</strong> 可以用手机/微信/系统相册的文字识别复制结果，再粘贴到右侧文本框。", "warn");
+          return false;
+        }
+        try {
+          const bitmap = await createImageBitmap(file);
+          const detector = new window.TextDetector();
+          const blocks = await detector.detect(bitmap);
+          const text = blocks.map((block) => block.rawValue || "").filter(Boolean).join("\n");
+          $("va-plate-text").value = text;
+          setResult("va-plate-status", `<strong>已尝试本地识别 ${blocks.length} 段文字。</strong> 请核对文本后解析为孔板。`, blocks.length ? "ok" : "warn");
+          if (text) vaPlateParseToGrid();
+          return Boolean(text);
+        } catch (error) {
+          setResult("va-plate-status", `<strong>图片识别失败：</strong>${escapeHtml(error.message)}。可以改用仪器导出文本或手机 OCR 粘贴。`, "warn");
+          return false;
+        }
+      }
+
+      function vaPlateHandleImage() {
+        const file = $("va-plate-image").files?.[0];
+        if (vaPlateImageUrl) URL.revokeObjectURL(vaPlateImageUrl);
+        if (!file) {
+          vaPlateImageUrl = "";
+          $("va-plate-preview").textContent = "上传照片后在这里预览。若浏览器支持本地文字识别，可尝试自动读取数字。";
+          return;
+        }
+        vaPlateImageUrl = URL.createObjectURL(file);
+        $("va-plate-preview").innerHTML = `<img alt="读板仪照片预览" src="${vaPlateImageUrl}">`;
+        setResult("va-plate-status", "<strong>照片已载入。</strong> 可以尝试本地识别；如果识别不稳定，建议粘贴手机 OCR 文本或仪器导出文本。", "ok");
+      }
+
+      function vaPlateAssignSelected() {
+        const wells = Array.from(vaPlateSelectedWells);
+        if (!wells.length) {
+          setResult("va-plate-status", "<strong>请先选择孔位。</strong>", "warn");
+          return false;
+        }
+        const role = $("va-plate-role").value;
+        const groupInput = $("va-plate-group").value.trim();
+        const dilution = parseFloat($("va-plate-dilution").value);
+        const standardConc = parseFloat($("va-plate-standard").value);
+        const group = role === "blank" ? "Blank" : role === "control" ? (groupInput || "Control") : groupInput;
+        wells.forEach((well) => {
+          const prev = vaPlateWells.get(well) || vaPlateEmptyWell(well);
+          vaPlateWells.set(well, {
+            ...prev,
+            role,
+            group: role === "ignore" ? "" : (group || role),
+            dilution: isFinite(dilution) ? dilution : prev.dilution,
+            standardConc: isFinite(standardConc) ? standardConc : prev.standardConc
+          });
+        });
+        vaPlateRender();
+        setResult("va-plate-status", `<strong>已标记 ${wells.length} 个孔为 ${escapeHtml(vaPlateRoleLabel(role))}。</strong>`, "ok");
+        return true;
+      }
+
+      function vaPlateCollectByRole() {
+        const byRole = { blank: [], control: new Map(), sample: new Map(), standard: new Map() };
+        vaPlateWells.forEach((entry) => {
+          if (!isFinite(entry.value) || entry.role === "ignore") return;
+          if (entry.role === "blank") byRole.blank.push(entry.value);
+          if (entry.role === "control" || entry.role === "sample") {
+            const map = entry.role === "control" ? byRole.control : byRole.sample;
+            const key = entry.group || (entry.role === "control" ? "Control" : entry.well);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key).push(entry);
+          }
+          if (entry.role === "standard" && isFinite(entry.standardConc)) {
+            const key = String(entry.standardConc);
+            if (!byRole.standard.has(key)) byRole.standard.set(key, []);
+            byRole.standard.get(key).push(entry);
+          }
+        });
+        return byRole;
+      }
+
+      function vaPlateRowsFromMap(map, includeDilution = false) {
+        return Array.from(map.entries()).map(([name, entries]) => {
+          const values = entries.map((entry) => entry.value);
+          if (includeDilution) {
+            const dilution = entries.find((entry) => isFinite(entry.dilution))?.dilution || 1;
+            return `${name}, ${fmt(dilution, 4)}, ${values.map((value) => fmt(value, 4)).join(", ")}`;
+          }
+          return `${name}, ${values.map((value) => fmt(value, 4)).join(", ")}`;
+        });
+      }
+
+      function vaPlateToViability() {
+        const data = vaPlateCollectByRole();
+        const lines = [];
+        if (data.blank.length) lines.push(`Blank, ${data.blank.map((value) => fmt(value, 4)).join(", ")}`);
+        lines.push(...vaPlateRowsFromMap(data.control));
+        lines.push(...vaPlateRowsFromMap(data.sample));
+        if (!lines.length || (!data.control.size && !data.sample.size)) {
+          setResult("va-plate-status", "<strong>没有可生成的活性分析组。</strong> 请至少标记一个对照组或实验组。", "warn");
+          return false;
+        }
+        $("va-method").value = "viability";
+        $("va-data").value = lines.join("\n");
+        $("va-blank-group").value = data.blank.length ? "Blank" : "";
+        $("va-control-group").value = data.control.keys().next().value || "";
+        calculateViability();
+        setResult("va-plate-status", "<strong>已生成到 CCK8 / MTT 相对存活率分析。</strong>", "ok");
+        return true;
+      }
+
+      function vaLinearRegression(points) {
+        const clean = points.filter((point) => isFinite(point.x) && isFinite(point.y));
+        const n = clean.length;
+        if (n < 2) return { slope: NaN, intercept: NaN, r2: NaN };
+        const sx = clean.reduce((sum, point) => sum + point.x, 0);
+        const sy = clean.reduce((sum, point) => sum + point.y, 0);
+        const sxx = clean.reduce((sum, point) => sum + point.x * point.x, 0);
+        const sxy = clean.reduce((sum, point) => sum + point.x * point.y, 0);
+        const denom = n * sxx - sx * sx;
+        if (Math.abs(denom) < 1e-12) return { slope: NaN, intercept: NaN, r2: NaN };
+        const slope = (n * sxy - sx * sy) / denom;
+        const intercept = (sy - slope * sx) / n;
+        const yMean = sy / n;
+        const ssTot = clean.reduce((sum, point) => sum + Math.pow(point.y - yMean, 2), 0);
+        const ssRes = clean.reduce((sum, point) => sum + Math.pow(point.y - (slope * point.x + intercept), 2), 0);
+        return { slope, intercept, r2: ssTot === 0 ? 1 : 1 - ssRes / ssTot };
+      }
+
+      function vaPlateToBca() {
+        const data = vaPlateCollectByRole();
+        const sampleLines = vaPlateRowsFromMap(data.sample, true).concat(vaPlateRowsFromMap(data.control, true));
+        if (data.blank.length) $("bca-blanks").value = data.blank.map((value) => fmt(value, 4)).join(", ");
+        if (sampleLines.length) $("bca-samples").value = sampleLines.join("\n");
+        const blankMean = data.blank.length ? mean(data.blank) : 0;
+        const stdPoints = Array.from(data.standard.entries()).map(([conc, entries]) => ({
+          x: parseFloat(conc),
+          y: mean(entries.map((entry) => entry.value)) - blankMean
+        })).filter((point) => isFinite(point.x) && isFinite(point.y));
+        const fit = vaLinearRegression(stdPoints);
+        if (isFinite(fit.slope) && fit.slope !== 0 && isFinite(fit.intercept)) {
+          $("bca-slope").value = fmt(fit.slope, 6);
+          $("bca-intercept").value = fmt(fit.intercept, 6);
+        }
+        if (!sampleLines.length) {
+          setResult("va-plate-status", "<strong>没有可生成的 BCA 样本。</strong> 请把样本孔标记为“实验组/样本”，标准品孔标记为“BCA 标准品”。", "warn");
+          return false;
+        }
+        activateTab("bca", true);
+        calculateBcaAll();
+        setResult("va-plate-status", `<strong>已生成到 BCA/WB。</strong>${isFinite(fit.r2) ? ` 标准曲线 R²=${fmt(fit.r2, 4)}。` : " 未标记足够标准品，沿用当前标准曲线。"}`, isFinite(fit.r2) && fit.r2 < 0.98 ? "warn" : "ok");
+        return true;
+      }
+
+      function vaPlateClear() {
+        vaPlateWells.clear();
+        vaPlateSelectedWells.clear();
+        $("va-plate-text").value = "";
+        vaPlateRender();
+        setResult("va-plate-status", "<strong>读板数据已清空。</strong>", "ok");
       }
 
       function calculateRT(samples) {
@@ -5459,6 +5845,17 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           $("va-result").className = "result";
           $("va-result").innerHTML = "";
         });
+        $("va-plate-image").addEventListener("change", vaPlateHandleImage);
+        $("va-plate-ocr").addEventListener("click", vaPlateTryOcr);
+        $("va-plate-parse").addEventListener("click", vaPlateParseToGrid);
+        $("va-plate-clear").addEventListener("click", vaPlateClear);
+        $("va-plate-grid").addEventListener("click", (event) => {
+          const cell = event.target.closest(".plate-cell");
+          if (cell?.dataset.well) vaPlateSelectWell(cell.dataset.well, event.ctrlKey || event.metaKey);
+        });
+        $("va-plate-assign").addEventListener("click", vaPlateAssignSelected);
+        $("va-plate-to-viability").addEventListener("click", vaPlateToViability);
+        $("va-plate-to-bca").addEventListener("click", vaPlateToBca);
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("mm-calc").addEventListener("click", calculateMasterMix);
@@ -5506,6 +5903,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       registerServiceWorker();
       bindEvents();
       qpaUpdateCompareModeUi();
+      vaPlateRender();
 
       const initialTab = (location.hash || "").replace("#", "");
       if (["cell", "seeding", "drug", "viability", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "virus"].includes(initialTab)) {
