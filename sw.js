@@ -1,9 +1,13 @@
-const CACHE_NAME = "w2g-lab-calculator-app-v6";
+const CACHE_NAME = "w2g-lab-calculator-app-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./ikun-idle.webp",
+  "./ocr/tesseract.min.js",
+  "./ocr/worker.min.js",
+  "./ocr/tesseract-core-lstm.wasm.js",
+  "./ocr/eng.traineddata.gz",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png"
