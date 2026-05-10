@@ -1199,6 +1199,7 @@
       <button class="tab-button" type="button" data-tab="drug" aria-controls="panel-drug">药物梯度</button>
       <button class="tab-button" type="button" data-tab="viability" aria-controls="panel-viability">活性/ADCC</button>
       <button class="tab-button" type="button" data-tab="ic50" aria-controls="panel-ic50">IC50药敏</button>
+      <button class="tab-button" type="button" data-tab="elisa" aria-controls="panel-elisa">ELISA</button>
       <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
       <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
       <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
@@ -1478,7 +1479,7 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
                     <option value="sample">实验组 / 样本</option>
                     <option value="control">对照组</option>
                     <option value="blank">空白孔</option>
-                    <option value="standard">BCA 标准品</option>
+                    <option value="standard">BCA / ELISA 标准品</option>
                     <option value="ignore">忽略</option>
                   </select>
                 </div>
@@ -1487,11 +1488,11 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
                   <input id="va-plate-group" type="text" value="Sample_1" />
                 </div>
                 <div>
-                  <label for="va-plate-dilution">BCA 样本稀释倍数</label>
+                  <label for="va-plate-dilution">样本稀释倍数</label>
                   <input id="va-plate-dilution" type="number" min="0" step="any" inputmode="decimal" value="10" />
                 </div>
                 <div>
-                  <label for="va-plate-standard">BCA 标准浓度</label>
+                  <label for="va-plate-standard">BCA / ELISA 标准浓度</label>
                   <input id="va-plate-standard" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 0.5" />
                 </div>
                 <div>
@@ -1503,6 +1504,7 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
                 <button class="action secondary small" type="button" id="va-plate-assign">标记所选孔</button>
                 <button class="action secondary small" type="button" id="va-plate-to-viability">生成到活性分析</button>
                 <button class="action secondary small" type="button" id="va-plate-to-ic50">生成到 IC50</button>
+                <button class="action secondary small" type="button" id="va-plate-to-elisa">生成到 ELISA</button>
                 <button class="action secondary small" type="button" id="va-plate-to-bca">生成到 BCA/WB</button>
               </div>
               <div class="help">点击孔位选择；按住 Ctrl/⌘ 可多选复孔，然后一次性标记为空白、对照、实验组、样本、IC50 浓度或标准品。</div>
@@ -1604,6 +1606,86 @@ Drug_A, 10, 0.105, 0.098, 0.101</textarea>
           <div><span class="formula">抑制率% = 100 - 存活率%</span></div>
           <div><span class="formula">IC50 = 在 log10(浓度) 上对 50% 抑制率做线性插值估算</span></div>
           <div class="help">如果曲线没有跨过 50% 抑制率，网页会提示无法估算。正式发表前建议在 Prism 中进一步做 4PL 非线性拟合。</div>
+        </details>
+      </section>
+
+      <section id="panel-elisa" class="tool-panel" data-panel="elisa">
+        <div class="module-head">
+          <div>
+            <h2>ELISA / 标准曲线计算器</h2>
+            <p class="module-note">粘贴 OD450 或从读板助手生成数据，自动扣空白、拟合 4PL 或线性标准曲线，计算样本浓度并导出 Prism CSV。</p>
+          </div>
+          <div class="quick-note">适合双复孔/三复孔标准品与样本；正式报告前建议核对标准曲线范围和复孔 CV。</div>
+        </div>
+
+        <h3>一、标准品与样本</h3>
+        <div class="two-col">
+          <div class="panel">
+            <label for="elisa-standards">标准品数据</label>
+            <textarea id="elisa-standards">0, 0.052, 0.050, 0.051
+15.6, 0.132, 0.136, 0.134
+31.2, 0.205, 0.210, 0.208
+62.5, 0.346, 0.352, 0.349
+125, 0.625, 0.638, 0.631
+250, 1.020, 1.035, 1.028
+500, 1.585, 1.612, 1.600
+1000, 2.120, 2.150, 2.136</textarea>
+            <div class="help">格式：标准浓度, OD1, OD2, OD3。可从 Excel 直接复制，逗号或制表符都可以。</div>
+          </div>
+          <div class="panel">
+            <label for="elisa-samples">样本数据</label>
+            <textarea id="elisa-samples">Sample_1, 20, 0.742, 0.758, 0.750
+Sample_2, 20, 1.105, 1.128, 1.116
+Sample_3, 10, 0.485, 0.492, 0.489</textarea>
+            <div class="help">格式：样本名, 稀释倍数, OD1, OD2。输出会同时给出板上浓度和乘稀释倍数后的原样浓度。</div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:14px;">
+          <div class="grid">
+            <div>
+              <label for="elisa-blank">空白孔 OD</label>
+              <input id="elisa-blank" type="text" inputmode="decimal" value="0.052, 0.050, 0.051" />
+            </div>
+            <div>
+              <label for="elisa-fit-mode">标准曲线拟合</label>
+              <select id="elisa-fit-mode">
+                <option value="4pl">4PL 四参数拟合（默认）</option>
+                <option value="linear">线性拟合</option>
+              </select>
+            </div>
+            <div>
+              <label for="elisa-unit">浓度单位</label>
+              <input id="elisa-unit" type="text" value="pg/mL" />
+            </div>
+            <div>
+              <label for="elisa-cv-threshold">CV 警告阈值 %</label>
+              <input id="elisa-cv-threshold" type="number" min="0" step="any" inputmode="decimal" value="15" />
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="action" type="button" id="elisa-calc">计算 ELISA</button>
+          <button class="action secondary" type="button" id="elisa-example">填入示例</button>
+          <button class="action secondary" type="button" id="elisa-download" disabled>导出 Prism CSV</button>
+        </div>
+
+        <div id="elisa-result" class="result" aria-live="polite"></div>
+        <div id="elisa-chart-box" class="result" aria-live="polite" style="display:none;">
+          <p class="result-title">ELISA 标准曲线</p>
+          <div class="chart-wrap">
+            <canvas id="elisa-chart" class="wide-chart" width="1080" height="460"></canvas>
+          </div>
+        </div>
+
+        <details class="formula-box">
+          <summary>计算说明</summary>
+          <div><span class="formula">校正 OD = 原始 OD - 空白孔均值</span></div>
+          <div><span class="formula">线性拟合：校正 OD = slope × 浓度 + intercept</span></div>
+          <div><span class="formula">4PL：y = D + (A - D) / (1 + (x / C)^B)</span></div>
+          <div><span class="formula">原样浓度 = 板上浓度 × 稀释倍数</span></div>
+          <div class="help">网页内置的是轻量 4PL 数值拟合，适合快速处理和预分析；需要发表级曲线时，建议把导出的 Prism CSV 再用 Prism 做正式拟合。</div>
         </details>
       </section>
 
@@ -2359,6 +2441,7 @@ Treat_2, 3, 8800, 9850</textarea>
       let qmeLastPrismCsv = "";
       let vaLastCsv = "";
       let icLastCsv = "";
+      let elisaLastCsv = "";
       let wbgLastCsv = "";
       let vaPlateImageUrl = "";
       let vaPlateScanUrl = "";
@@ -2541,6 +2624,11 @@ Treat_2, 3, 8800, 9850</textarea>
         if (!isFinite(value)) return "";
         const rounded = Number(value.toFixed(digits));
         return rounded.toLocaleString();
+      }
+
+      function fmtData(value, digits = 4) {
+        if (!isFinite(value)) return "";
+        return String(Number(value.toFixed(digits)));
       }
 
       function fmtFixed(value, digits = 3) {
@@ -3783,6 +3871,354 @@ Treat_2, 3, 8800, 9850</textarea>
         downloadCsv("ic50_prism_xy.csv", icLastCsv);
       }
 
+      function parseElisaStandards(text) {
+        return splitLines(text).map((line) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          const conc = parseFloat(parts[0]);
+          const values = parts.slice(1).map((value) => parseFloat(value)).filter((value) => isFinite(value));
+          return { conc, values };
+        }).filter((row) => isFinite(row.conc) && row.values.length);
+      }
+
+      function parseElisaSamples(text) {
+        return splitLines(text).map((line, index) => {
+          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
+          if (parts.length < 3) return { name: `Line_${index + 1}`, dilution: NaN, values: [] };
+          return {
+            name: parts[0],
+            dilution: parseFloat(parts[1]),
+            values: parts.slice(2).map((value) => parseFloat(value)).filter((value) => isFinite(value))
+          };
+        });
+      }
+
+      function elisaStandardPoints(rows, blankMean) {
+        const map = new Map();
+        rows.forEach((row) => {
+          if (!map.has(row.conc)) map.set(row.conc, []);
+          map.get(row.conc).push(...row.values);
+        });
+        return Array.from(map.entries()).map(([conc, values]) => {
+          const corrected = values.map((value) => value - blankMean);
+          return {
+            conc,
+            values,
+            corrected,
+            mean: mean(corrected),
+            sd: sd(corrected),
+            cv: cvPercent(corrected),
+            n: corrected.length
+          };
+        }).sort((a, b) => a.conc - b.conc);
+      }
+
+      function elisaPredict4pl(params, x) {
+        const { a, b, c, d } = params;
+        if (!isFinite(x) || x < 0 || !isFinite(c) || c <= 0) return NaN;
+        if (x === 0) return a;
+        return d + (a - d) / (1 + Math.pow(x / c, b));
+      }
+
+      function elisaInvert4pl(params, y) {
+        const { a, b, c, d } = params;
+        if (![a, b, c, d, y].every((value) => isFinite(value)) || c <= 0 || b <= 0) return NaN;
+        if (Math.abs(y - d) < 1e-12) return NaN;
+        const ratio = (a - d) / (y - d) - 1;
+        if (!isFinite(ratio) || ratio <= 0) return NaN;
+        return c * Math.pow(ratio, 1 / b);
+      }
+
+      function elisaFit4pl(points) {
+        const clean = points.filter((point) => point.conc > 0 && isFinite(point.mean)).sort((a, b) => a.conc - b.conc);
+        if (clean.length < 4) return { ok: false, message: "4PL 至少需要 4 个非零浓度标准点。" };
+        const xs = clean.map((point) => point.conc);
+        const ys = clean.map((point) => point.mean);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const yRange = Math.max(maxY - minY, 0.001);
+        const targetMid = minY + yRange / 2;
+        const midPoint = clean.reduce((best, point) => Math.abs(point.mean - targetMid) < Math.abs(best.mean - targetMid) ? point : best, clean[0]);
+        let params = {
+          a: Math.min(0, minY),
+          d: maxY,
+          c: midPoint.conc,
+          b: 1
+        };
+        const bounds = {
+          a: [minY - yRange, maxY + yRange],
+          d: [minY - yRange, maxY + yRange],
+          logC: [Math.log(Math.min(...xs) / 100), Math.log(Math.max(...xs) * 100)],
+          b: [0.05, 8]
+        };
+        const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+        const sse = (candidate) => {
+          if (candidate.b <= 0 || candidate.c <= 0 || candidate.d <= candidate.a) return Infinity;
+          return clean.reduce((sum, point) => {
+            const pred = elisaPredict4pl(candidate, point.conc);
+            return sum + Math.pow(point.mean - pred, 2);
+          }, 0);
+        };
+        let vector = [params.a, params.d, Math.log(params.c), params.b];
+        let steps = [yRange / 2, yRange / 2, Math.log(10), 0.8];
+        let best = sse(params);
+        for (let iter = 0; iter < 140; iter += 1) {
+          for (let i = 0; i < vector.length; i += 1) {
+            for (const direction of [1, -1]) {
+              const next = vector.slice();
+              next[i] += steps[i] * direction;
+              next[0] = clamp(next[0], bounds.a[0], bounds.a[1]);
+              next[1] = clamp(next[1], bounds.d[0], bounds.d[1]);
+              next[2] = clamp(next[2], bounds.logC[0], bounds.logC[1]);
+              next[3] = clamp(next[3], bounds.b[0], bounds.b[1]);
+              const candidate = { a: next[0], d: next[1], c: Math.exp(next[2]), b: next[3] };
+              const score = sse(candidate);
+              if (score < best) {
+                vector = next;
+                params = candidate;
+                best = score;
+              }
+            }
+          }
+          steps = steps.map((step) => step * 0.92);
+        }
+        const yMean = ys.reduce((sum, value) => sum + value, 0) / ys.length;
+        const ssTot = ys.reduce((sum, value) => sum + Math.pow(value - yMean, 2), 0);
+        return {
+          ok: true,
+          model: "4pl",
+          params,
+          r2: ssTot === 0 ? 1 : 1 - best / ssTot,
+          predict: (x) => elisaPredict4pl(params, x),
+          inverse: (y) => elisaInvert4pl(params, y)
+        };
+      }
+
+      function elisaFitLinear(points) {
+        const clean = points.filter((point) => isFinite(point.conc) && isFinite(point.mean));
+        const fit = vaLinearRegression(clean.map((point) => ({ x: point.conc, y: point.mean })));
+        if (!isFinite(fit.slope) || fit.slope === 0) return { ok: false, message: "线性拟合失败，请检查标准品浓度和 OD。" };
+        return {
+          ok: true,
+          model: "linear",
+          slope: fit.slope,
+          intercept: fit.intercept,
+          r2: fit.r2,
+          predict: (x) => fit.slope * x + fit.intercept,
+          inverse: (y) => (y - fit.intercept) / fit.slope
+        };
+      }
+
+      function elisaBuildCsv(standardPoints, sampleRows, fit, unit, blankMean) {
+        const rows = [
+          ["ELISA analysis"],
+          ["Fit model", fit.model === "4pl" ? "4PL" : "Linear"],
+          ["Unit", unit],
+          ["Blank mean", blankMean],
+          ["R2", fit.r2],
+          []
+        ];
+        if (fit.model === "4pl") rows.push(["4PL", "A", fit.params.a, "B", fit.params.b, "C", fit.params.c, "D", fit.params.d], []);
+        else rows.push(["Linear", "Slope", fit.slope, "Intercept", fit.intercept], []);
+        rows.push(["Standards"], ["Concentration", "Mean corrected OD", "SD", "CV%", "n"]);
+        standardPoints.forEach((point) => rows.push([point.conc, point.mean, point.sd, point.cv, point.n]));
+        rows.push([], ["Samples"], ["Sample", "Dilution", "Mean OD", "Corrected OD", `Plate concentration ${unit}`, `Original concentration ${unit}`, "CV%", "n", "Status"]);
+        sampleRows.forEach((row) => rows.push([row.name, row.dilution, row.rawMean, row.correctedMean, row.plateConc, row.originalConc, row.cv, row.n, row.status]));
+        rows.push([], ["Prism XY standard curve"], ["Concentration", "Corrected OD"]);
+        standardPoints.forEach((point) => point.corrected.forEach((value) => rows.push([point.conc, value])));
+        return rowsToCsv(rows);
+      }
+
+      function elisaDrawChart(standardPoints, sampleRows, fit, unit) {
+        const box = $("elisa-chart-box");
+        const canvas = $("elisa-chart");
+        if (!canvas || !fit.ok) return;
+        const ctx = canvas.getContext("2d");
+        const clean = standardPoints.filter((point) => isFinite(point.conc) && isFinite(point.mean));
+        if (clean.length < 2) return;
+        const xMin = Math.min(0, ...clean.map((point) => point.conc));
+        const xMax = Math.max(...clean.map((point) => point.conc));
+        const yMax = Math.max(...clean.map((point) => point.mean + (point.sd || 0)), ...sampleRows.map((row) => row.correctedMean || 0), 0.1) * 1.12;
+        const xFor = (x) => 76 + ((x - xMin) / Math.max(1e-12, xMax - xMin)) * (canvas.width - 112);
+        const yFor = (y) => 38 + (canvas.height - 116) - (Math.max(0, y) / yMax) * (canvas.height - 116);
+        box.style.display = "block";
+        box.className = "result ok";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "12px Arial";
+        ctx.strokeStyle = "#cfd8d6";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i += 1) {
+          const yVal = yMax * i / 5;
+          const y = yFor(yVal);
+          ctx.beginPath();
+          ctx.moveTo(76, y);
+          ctx.lineTo(canvas.width - 36, y);
+          ctx.stroke();
+          ctx.fillStyle = "#607177";
+          ctx.textAlign = "right";
+          ctx.fillText(fmt(yVal, 3), 68, y + 4);
+        }
+        for (let i = 0; i <= 5; i += 1) {
+          const xVal = xMin + (xMax - xMin) * i / 5;
+          const x = xFor(xVal);
+          ctx.strokeStyle = "#e1e9e7";
+          ctx.beginPath();
+          ctx.moveTo(x, 38);
+          ctx.lineTo(x, canvas.height - 78);
+          ctx.stroke();
+          ctx.fillStyle = "#172326";
+          ctx.textAlign = "center";
+          ctx.fillText(fmt(xVal, 3), x, canvas.height - 54);
+        }
+        ctx.strokeStyle = "#172326";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(76, 38);
+        ctx.lineTo(76, canvas.height - 78);
+        ctx.lineTo(canvas.width - 36, canvas.height - 78);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#08766d";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i <= 120; i += 1) {
+          const xVal = xMin + (xMax - xMin) * i / 120;
+          const yVal = fit.predict(xVal);
+          const x = xFor(xVal);
+          const y = yFor(yVal);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        clean.forEach((point) => {
+          const x = xFor(point.conc);
+          const y = yFor(point.mean);
+          const err = (point.sd || 0) / yMax * (canvas.height - 116);
+          ctx.strokeStyle = "#d99022";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y - err);
+          ctx.lineTo(x, y + err);
+          ctx.moveTo(x - 5, y - err);
+          ctx.lineTo(x + 5, y - err);
+          ctx.moveTo(x - 5, y + err);
+          ctx.lineTo(x + 5, y + err);
+          ctx.stroke();
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+
+        ctx.fillStyle = "#172326";
+        ctx.font = "700 18px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("ELISA 标准曲线", canvas.width / 2, 24);
+        ctx.font = "14px Arial";
+        ctx.fillText(`浓度 (${unit})`, canvas.width / 2, canvas.height - 22);
+        ctx.save();
+        ctx.translate(22, canvas.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("校正 OD", 0, 0);
+        ctx.restore();
+      }
+
+      function calculateElisa() {
+        try {
+          const standards = parseElisaStandards($("elisa-standards").value);
+          const samples = parseElisaSamples($("elisa-samples").value);
+          const blanks = parseNumbers($("elisa-blank").value);
+          const blankMean = blanks.length ? mean(blanks) : 0;
+          const fitMode = $("elisa-fit-mode").value;
+          const unit = $("elisa-unit").value.trim() || "pg/mL";
+          const cvThreshold = getNumber("elisa-cv-threshold");
+          if (standards.length < 2) throw new Error("至少需要 2 个标准品浓度。");
+          if (!samples.length) throw new Error("请填写样本数据。");
+          const standardPoints = elisaStandardPoints(standards, blankMean);
+          const fit = fitMode === "linear" ? elisaFitLinear(standardPoints) : elisaFit4pl(standardPoints);
+          if (!fit.ok) throw new Error(fit.message);
+          const minConc = Math.min(...standardPoints.map((point) => point.conc));
+          const maxConc = Math.max(...standardPoints.map((point) => point.conc));
+          let hasWarn = false;
+          const sampleRows = samples.map((sample) => {
+            const rawMean = mean(sample.values);
+            const correctedMean = rawMean - blankMean;
+            const plateConc = fit.inverse(correctedMean);
+            const originalConc = plateConc * sample.dilution;
+            const cv = cvPercent(sample.values);
+            let status = "可用";
+            if (!sample.values.length) status = "缺少OD";
+            else if (!isFinite(sample.dilution) || sample.dilution <= 0) status = "稀释倍数无效";
+            else if (!isFinite(plateConc) || plateConc < 0) status = "超出曲线或无法反算";
+            else if (plateConc < minConc || plateConc > maxConc) status = "超出标准曲线范围";
+            else if (isFinite(cvThreshold) && cv > cvThreshold) status = `CV%>${fmt(cvThreshold, 1)}`;
+            if (status !== "可用") hasWarn = true;
+            return { name: sample.name, dilution: sample.dilution, n: sample.values.length, rawMean, correctedMean, plateConc, originalConc, cv, status };
+          });
+          const standardRows = standardPoints.map((point) => [
+            fmt(point.conc, 6),
+            fmt(point.mean, 4),
+            fmt(point.sd, 4),
+            fmt(point.cv, 2),
+            fmtInt(point.n)
+          ]);
+          const sampleTableRows = sampleRows.map((row) => [
+            escapeHtml(row.name),
+            fmt(row.dilution, 3),
+            fmt(row.rawMean, 4),
+            fmt(row.correctedMean, 4),
+            fmt(row.plateConc, 4),
+            fmt(row.originalConc, 4),
+            fmt(row.cv, 2),
+            fmtInt(row.n),
+            escapeHtml(row.status)
+          ]);
+          elisaLastCsv = elisaBuildCsv(standardPoints, sampleRows, fit, unit, blankMean);
+          $("elisa-download").disabled = !elisaLastCsv;
+          const fitText = fit.model === "4pl"
+            ? `4PL: A=${fmt(fit.params.a, 4)}, B=${fmt(fit.params.b, 4)}, C=${fmt(fit.params.c, 4)}, D=${fmt(fit.params.d, 4)}`
+            : `线性: y=${fmt(fit.slope, 6)}x + ${fmt(fit.intercept, 6)}`;
+          setResult("elisa-result", `
+            <p class="result-title">ELISA 计算结果</p>
+            <div class="metric-grid">
+              <div class="metric"><strong>${fmt(blankMean, 4)}</strong><span>空白均值</span></div>
+              <div class="metric"><strong>${fmt(fit.r2, 4)}</strong><span>标准曲线 R²</span></div>
+              <div class="metric"><strong>${escapeHtml(fit.model === "4pl" ? "4PL" : "Linear")}</strong><span>拟合方式</span></div>
+            </div>
+            <div class="notice ${hasWarn ? "warn" : "ok"}"><strong>曲线：</strong>${escapeHtml(fitText)}</div>
+            <div class="section-title">标准品</div>
+            ${table([`浓度 ${unit}`, "校正OD均值", "SD", "CV%", "n"], standardRows)}
+            <div class="section-title">样本</div>
+            ${table(["样本", "稀释倍数", "平均OD", "校正OD", `板上浓度 ${unit}`, `原样浓度 ${unit}`, "CV%", "n", "判断"], sampleTableRows)}
+          `, hasWarn ? "warn" : "ok");
+          elisaDrawChart(standardPoints, sampleRows, fit, unit);
+          return true;
+        } catch (error) {
+          elisaLastCsv = "";
+          $("elisa-download").disabled = true;
+          $("elisa-chart-box").style.display = "none";
+          setResult("elisa-result", `<p class="result-title">ELISA 计算失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
+          return false;
+        }
+      }
+
+      function fillElisaExample() {
+        $("elisa-standards").value = "0, 0.052, 0.050, 0.051\n15.6, 0.132, 0.136, 0.134\n31.2, 0.205, 0.210, 0.208\n62.5, 0.346, 0.352, 0.349\n125, 0.625, 0.638, 0.631\n250, 1.020, 1.035, 1.028\n500, 1.585, 1.612, 1.600\n1000, 2.120, 2.150, 2.136";
+        $("elisa-samples").value = "Sample_1, 20, 0.742, 0.758, 0.750\nSample_2, 20, 1.105, 1.128, 1.116\nSample_3, 10, 0.485, 0.492, 0.489";
+        $("elisa-blank").value = "0.052, 0.050, 0.051";
+        $("elisa-fit-mode").value = "4pl";
+        $("elisa-unit").value = "pg/mL";
+        $("elisa-cv-threshold").value = "15";
+        calculateElisa();
+      }
+
+      function downloadElisaCsv() {
+        downloadCsv("elisa_standard_curve_results.csv", elisaLastCsv);
+      }
+
       function vaPlateRoleLabel(role) {
         return {
           blank: "空白",
@@ -4147,16 +4583,16 @@ Treat_2, 3, 8800, 9850</textarea>
           const values = entries.map((entry) => entry.value);
           if (includeDilution) {
             const dilution = entries.find((entry) => isFinite(entry.dilution))?.dilution || 1;
-            return `${name}, ${fmt(dilution, 4)}, ${values.map((value) => fmt(value, 4)).join(", ")}`;
+            return `${name}, ${fmtData(dilution, 4)}, ${values.map((value) => fmtData(value, 4)).join(", ")}`;
           }
-          return `${name}, ${values.map((value) => fmt(value, 4)).join(", ")}`;
+          return `${name}, ${values.map((value) => fmtData(value, 4)).join(", ")}`;
         });
       }
 
       function vaPlateToViability() {
         const data = vaPlateCollectByRole();
         const lines = [];
-        if (data.blank.length) lines.push(`Blank, ${data.blank.map((value) => fmt(value, 4)).join(", ")}`);
+        if (data.blank.length) lines.push(`Blank, ${data.blank.map((value) => fmtData(value, 4)).join(", ")}`);
         lines.push(...vaPlateRowsFromMap(data.control));
         lines.push(...vaPlateRowsFromMap(data.sample));
         if (!lines.length || (!data.control.size && !data.sample.size)) {
@@ -4205,13 +4641,13 @@ Treat_2, 3, 8800, 9850</textarea>
           const matchedControl = data.control.get(series) || sharedControl || [];
           const controlValues = matchedControl.map((entry) => entry.value).filter((value) => isFinite(value));
           if (controlValues.length && !byConc.has(0)) {
-            lines.push(`${series}, 0, ${controlValues.map((value) => fmt(value, 4)).join(", ")}`);
+            lines.push(`${series}, 0, ${controlValues.map((value) => fmtData(value, 4)).join(", ")}`);
           }
           Array.from(byConc.entries())
             .sort((a, b) => a[0] - b[0])
             .forEach(([conc, values]) => {
               if (!values.length) return;
-              lines.push(`${series}, ${fmt(conc, 6)}, ${values.map((value) => fmt(value, 4)).join(", ")}`);
+              lines.push(`${series}, ${fmtData(conc, 6)}, ${values.map((value) => fmtData(value, 4)).join(", ")}`);
             });
         });
 
@@ -4222,12 +4658,33 @@ Treat_2, 3, 8800, 9850</textarea>
 
         $("ic-input-mode").value = "raw";
         $("ic-control-conc").value = "0";
-        $("ic-blank").value = data.blank.length ? data.blank.map((value) => fmt(value, 4)).join(", ") : "";
+        $("ic-blank").value = data.blank.length ? data.blank.map((value) => fmtData(value, 4)).join(", ") : "";
         $("ic-data").value = lines.join("\n");
         activateTab("ic50", true);
         calculateIc50();
         const note = missingDose ? ` 有 ${missingDose} 个样本孔未填写浓度，已跳过。` : "";
         setResult("va-plate-status", `<strong>已生成到 IC50 药敏曲线。</strong> 空白、0 浓度对照和各浓度复孔已自动整理。${note}`, missingDose ? "warn" : "ok");
+        return true;
+      }
+
+      function vaPlateToElisa() {
+        const data = vaPlateCollectByRole();
+        const standardLines = Array.from(data.standard.entries())
+          .map(([conc, entries]) => ({ conc: parseFloat(conc), values: entries.map((entry) => entry.value) }))
+          .filter((row) => isFinite(row.conc) && row.values.length)
+          .sort((a, b) => a.conc - b.conc)
+          .map((row) => `${fmtData(row.conc, 6)}, ${row.values.map((value) => fmtData(value, 4)).join(", ")}`);
+        const sampleLines = vaPlateRowsFromMap(data.sample, true).concat(vaPlateRowsFromMap(data.control, true));
+        if (data.blank.length) $("elisa-blank").value = data.blank.map((value) => fmtData(value, 4)).join(", ");
+        if (standardLines.length) $("elisa-standards").value = standardLines.join("\n");
+        if (sampleLines.length) $("elisa-samples").value = sampleLines.join("\n");
+        if (standardLines.length < 2 || !sampleLines.length) {
+          setResult("va-plate-status", "<strong>没有足够数据生成 ELISA。</strong> 请至少标记 2 个标准品浓度和 1 个样本组；标准品孔需要填写 BCA / ELISA 标准浓度。", "warn");
+          return false;
+        }
+        activateTab("elisa", true);
+        calculateElisa();
+        setResult("va-plate-status", `<strong>已生成到 ELISA。</strong> 已整理 ${standardLines.length} 个标准品浓度和 ${sampleLines.length} 个样本组。`, "ok");
         return true;
       }
 
@@ -4252,7 +4709,7 @@ Treat_2, 3, 8800, 9850</textarea>
       function vaPlateToBca() {
         const data = vaPlateCollectByRole();
         const sampleLines = vaPlateRowsFromMap(data.sample, true).concat(vaPlateRowsFromMap(data.control, true));
-        if (data.blank.length) $("bca-blanks").value = data.blank.map((value) => fmt(value, 4)).join(", ");
+        if (data.blank.length) $("bca-blanks").value = data.blank.map((value) => fmtData(value, 4)).join(", ");
         if (sampleLines.length) $("bca-samples").value = sampleLines.join("\n");
         const blankMean = data.blank.length ? mean(data.blank) : 0;
         const stdPoints = Array.from(data.standard.entries()).map(([conc, entries]) => ({
@@ -6732,10 +7189,14 @@ Treat_2, 3, 8800, 9850</textarea>
         $("va-plate-assign").addEventListener("click", vaPlateAssignSelected);
         $("va-plate-to-viability").addEventListener("click", vaPlateToViability);
         $("va-plate-to-ic50").addEventListener("click", vaPlateToIc50);
+        $("va-plate-to-elisa").addEventListener("click", vaPlateToElisa);
         $("va-plate-to-bca").addEventListener("click", vaPlateToBca);
         $("ic-calc").addEventListener("click", calculateIc50);
         $("ic-example").addEventListener("click", fillIc50Example);
         $("ic-download").addEventListener("click", downloadIc50Csv);
+        $("elisa-calc").addEventListener("click", calculateElisa);
+        $("elisa-example").addEventListener("click", fillElisaExample);
+        $("elisa-download").addEventListener("click", downloadElisaCsv);
         $("qpcr-calc").addEventListener("click", calculateQpcrAll);
         $("qpcr-example").addEventListener("click", fillQpcrExample);
         $("mm-calc").addEventListener("click", calculateMasterMix);
@@ -6789,7 +7250,7 @@ Treat_2, 3, 8800, 9850</textarea>
       vaPlateRender();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "seeding", "drug", "viability", "ic50", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "wbdensity", "virus"].includes(initialTab)) {
+      if (["cell", "seeding", "drug", "viability", "ic50", "elisa", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "wbdensity", "virus"].includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
