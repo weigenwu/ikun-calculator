@@ -387,6 +387,102 @@
       animation-duration: 0.72s;
     }
 
+    .workbench {
+      margin: 0 0 12px;
+      border: 1px solid rgba(8, 118, 109, 0.22);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 12px 30px rgba(21, 48, 53, 0.08);
+      padding: 16px;
+      transition: background 520ms ease, border-color 520ms ease, box-shadow 520ms ease;
+    }
+
+    body.theme-night .workbench {
+      border-color: rgba(83, 194, 185, 0.26);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+    }
+
+    .workbench-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .workbench-eyebrow {
+      margin: 0 0 3px;
+      color: var(--accent-strong);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .workbench-status {
+      flex: 0 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .workflow-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+    }
+
+    .workflow-card {
+      min-height: 76px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), var(--surface-soft));
+      color: var(--text);
+      padding: 12px;
+      text-align: left;
+      cursor: pointer;
+      display: grid;
+      align-content: center;
+      gap: 6px;
+      box-shadow: 0 8px 18px rgba(21, 48, 53, 0.06);
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    body.theme-night .workflow-card {
+      background: linear-gradient(180deg, rgba(29, 49, 53, 0.94), rgba(23, 39, 43, 0.94));
+    }
+
+    .workflow-card:hover,
+    .workflow-card:focus-visible {
+      border-color: var(--accent);
+      outline: none;
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(21, 48, 53, 0.11);
+    }
+
+    .workflow-card.active {
+      border-color: var(--accent-strong);
+      box-shadow: inset 0 0 0 1px rgba(8, 118, 109, 0.18), 0 12px 24px rgba(8, 118, 109, 0.12);
+    }
+
+    .workflow-card small {
+      width: fit-content;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .workflow-card strong {
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
     @keyframes ikun-idle {
       from {
         background-position: 0 0;
@@ -402,7 +498,7 @@
       top: 0;
       z-index: 10;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       padding: 10px 0 12px;
       margin-bottom: 8px;
@@ -413,6 +509,44 @@
 
     body.theme-night .tabs {
       background: rgba(17, 29, 32, 0.92);
+    }
+
+    .tab-group {
+      border: 1px solid rgba(8, 118, 109, 0.16);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.68);
+      padding: 9px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      transition: border-color 160ms ease, background 160ms ease;
+    }
+
+    body.theme-night .tab-group {
+      background: rgba(23, 39, 43, 0.72);
+      border-color: rgba(83, 194, 185, 0.18);
+    }
+
+    .tab-group:has(.tab-button.active) {
+      border-color: var(--accent);
+      background: rgba(255, 255, 255, 0.86);
+    }
+
+    body.theme-night .tab-group:has(.tab-button.active) {
+      background: rgba(29, 49, 53, 0.86);
+    }
+
+    .tab-group-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .tab-group-tools {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+      gap: 7px;
     }
 
     .tab-button {
@@ -1099,6 +1233,11 @@
         position: static;
       }
 
+      .workbench-head {
+        display: grid;
+        align-items: start;
+      }
+
       .comparison-row {
         grid-template-columns: 1fr;
       }
@@ -1141,6 +1280,7 @@
       }
 
       .tabs,
+      .workbench,
       .actions,
       .status-chip,
       .theme-toggle,
@@ -1193,21 +1333,76 @@
       </div>
     </header>
 
+    <section class="workbench" aria-label="今日工作台">
+      <div class="workbench-head">
+        <div>
+          <p class="workbench-eyebrow">今日工作台</p>
+        </div>
+        <div class="workbench-status">本地 · 离线 · CSV</div>
+      </div>
+      <div class="workflow-grid">
+        <button class="workflow-card" type="button" data-workbench-tab="viability">
+          <small>读板入口</small>
+          <strong>96 孔板读数</strong>
+        </button>
+        <button class="workflow-card" type="button" data-workbench-tab="ic50">
+          <small>药敏曲线</small>
+          <strong>IC50 药敏</strong>
+        </button>
+        <button class="workflow-card" type="button" data-workbench-tab="elisa">
+          <small>标准曲线</small>
+          <strong>ELISA / BCA</strong>
+        </button>
+        <button class="workflow-card" type="button" data-workbench-tab="qpcrdata">
+          <small>表达分析</small>
+          <strong>qPCR 图表</strong>
+        </button>
+        <button class="workflow-card" type="button" data-workbench-tab="flow">
+          <small>流式统计</small>
+          <strong>凋亡 / 周期</strong>
+        </button>
+        <button class="workflow-card" type="button" data-workbench-tab="cell">
+          <small>实验准备</small>
+          <strong>计数 / 铺板 / 配药</strong>
+        </button>
+      </div>
+    </section>
+
     <nav class="tabs" aria-label="计算器模块">
-      <button class="tab-button active" type="button" data-tab="cell" aria-controls="panel-cell">细胞计数板</button>
-      <button class="tab-button" type="button" data-tab="seeding" aria-controls="panel-seeding">细胞铺板</button>
-      <button class="tab-button" type="button" data-tab="drug" aria-controls="panel-drug">药物梯度</button>
-      <button class="tab-button" type="button" data-tab="viability" aria-controls="panel-viability">活性/ADCC</button>
-      <button class="tab-button" type="button" data-tab="ic50" aria-controls="panel-ic50">IC50药敏</button>
-      <button class="tab-button" type="button" data-tab="elisa" aria-controls="panel-elisa">ELISA</button>
-      <button class="tab-button" type="button" data-tab="flow" aria-controls="panel-flow">流式统计</button>
-      <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
-      <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
-      <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
-      <button class="tab-button" type="button" data-tab="qmulti" aria-controls="panel-qmulti">qPCR结果增强</button>
-      <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
-      <button class="tab-button" type="button" data-tab="wbdensity" aria-controls="panel-wbdensity">WB灰度</button>
-      <button class="tab-button" type="button" data-tab="virus" aria-controls="panel-virus">慢病毒包装</button>
+      <div class="tab-group">
+        <div class="tab-group-title">细胞实验</div>
+        <div class="tab-group-tools">
+          <button class="tab-button active" type="button" data-tab="cell" aria-controls="panel-cell">计数</button>
+          <button class="tab-button" type="button" data-tab="seeding" aria-controls="panel-seeding">铺板</button>
+          <button class="tab-button" type="button" data-tab="drug" aria-controls="panel-drug">药物梯度</button>
+          <button class="tab-button" type="button" data-tab="virus" aria-controls="panel-virus">慢病毒</button>
+        </div>
+      </div>
+      <div class="tab-group">
+        <div class="tab-group-title">读板分析</div>
+        <div class="tab-group-tools">
+          <button class="tab-button" type="button" data-tab="viability" aria-controls="panel-viability">活性/ADCC</button>
+          <button class="tab-button" type="button" data-tab="ic50" aria-controls="panel-ic50">IC50</button>
+          <button class="tab-button" type="button" data-tab="elisa" aria-controls="panel-elisa">ELISA</button>
+          <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
+        </div>
+      </div>
+      <div class="tab-group">
+        <div class="tab-group-title">分子实验</div>
+        <div class="tab-group-tools">
+          <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
+          <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
+          <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
+          <button class="tab-button" type="button" data-tab="qmulti" aria-controls="panel-qmulti">结果增强</button>
+        </div>
+      </div>
+      <div class="tab-group">
+        <div class="tab-group-title">蛋白 / 流式</div>
+        <div class="tab-group-tools">
+          <button class="tab-button" type="button" data-tab="flow" aria-controls="panel-flow">流式统计</button>
+          <button class="tab-button" type="button" data-tab="wbdensity" aria-controls="panel-wbdensity">WB灰度</button>
+        </div>
+      </div>
     </nav>
 
     <main>
@@ -7536,6 +7731,11 @@ Treat_2, 3, 8800, 9850</textarea>
           button.classList.toggle("active", active);
           button.setAttribute("aria-selected", active ? "true" : "false");
         });
+        document.querySelectorAll("[data-workbench-tab]").forEach((button) => {
+          const active = button.dataset.workbenchTab === name;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
         document.querySelectorAll(".tool-panel").forEach((panel) => {
           panel.classList.toggle("active", panel.dataset.panel === name);
         });
@@ -7544,9 +7744,18 @@ Treat_2, 3, 8800, 9850</textarea>
         }
       }
 
+      function jumpToTool(name) {
+        activateTab(name, true);
+        const panel = $("panel-" + name);
+        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
       function bindEvents() {
         document.querySelectorAll(".tab-button").forEach((button) => {
           button.addEventListener("click", () => activateTab(button.dataset.tab, true));
+        });
+        document.querySelectorAll("[data-workbench-tab]").forEach((button) => {
+          button.addEventListener("click", () => jumpToTool(button.dataset.workbenchTab));
         });
 
         $("theme-toggle").addEventListener("click", toggleTheme);
@@ -7658,7 +7867,8 @@ Treat_2, 3, 8800, 9850</textarea>
       vaPlateRender();
 
       const initialTab = (location.hash || "").replace("#", "");
-      if (["cell", "seeding", "drug", "viability", "ic50", "elisa", "flow", "qpcr", "mastermix", "qpcrdata", "qmulti", "bca", "wbdensity", "virus"].includes(initialTab)) {
+      const tabNames = Array.from(document.querySelectorAll(".tab-button")).map((button) => button.dataset.tab);
+      if (tabNames.includes(initialTab)) {
         activateTab(initialTab, false);
       } else {
         activateTab("cell", false);
