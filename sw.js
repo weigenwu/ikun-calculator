@@ -1,13 +1,9 @@
-const CACHE_NAME = "w2g-lab-calculator-app-v15";
+const CACHE_NAME = "w2g-lab-calculator-app-v18";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./ikun-idle.webp",
-  "./ocr/tesseract.min.js",
-  "./ocr/worker.min.js",
-  "./ocr/tesseract-core-lstm.wasm.js",
-  "./ocr/eng.traineddata.gz",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png"
@@ -57,7 +53,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
           return response;
         })
-        .catch(() => caches.match("./index.html"));
+        .catch(() => new Response("", { status: 504, statusText: "Offline" }));
     })
   );
 });

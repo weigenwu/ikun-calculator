@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "外实东区计算器",
-  "short_name": "金吾卫w²g",
+  "name": "实验室小神器",
+  "short_name": "实验室小神器",
   "description": "实验成功，顺利毕业。细胞计数、铺板、药物梯度、qPCR、BCA/WB 和慢病毒包装计算。",
   "lang": "zh-CN",
   "start_url": "./index.html",
