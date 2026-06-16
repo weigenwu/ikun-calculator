@@ -1,7 +1,9 @@
-const CACHE_NAME = "w2g-lab-calculator-app-v18";
+const CACHE_NAME = "w2g-lab-calculator-app-v20";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./styles.css",
+  "./app.js",
   "./manifest.webmanifest",
   "./ikun-idle.webp",
   "./icons/icon-192.png",
@@ -23,6 +25,10 @@ self.addEventListener("activate", (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("fetch", (event) => {
