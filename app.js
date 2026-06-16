@@ -16,6 +16,11 @@
       let vaPlateScanUrl = "";
       let vaTesseractPromise = null;
       let vaTesseractWorker = null;
+      let wbgRoiImage = null;
+      let wbgRoiSource = null;
+      let wbgRoiImageData = null;
+      let wbgRoiItems = [];
+      let wbgRoiDrag = null;
       const vaPlateWells = new Map();
       const vaPlateSelectedWells = new Set();
       let qmePrimaryWell = "A1";
@@ -23,7 +28,7 @@
       let musicObjectUrl = "";
       let deferredInstallPrompt = null;
       const themeKey = "w2g-calculator-theme";
-      const APP_VERSION = "v20";
+      const APP_VERSION = "v21";
       const draftPrefix = "w2g-calculator-draft:";
       let pendingServiceWorker = null;
       let reloadingForUpdate = false;
@@ -523,6 +528,21 @@
           box.innerHTML = "";
           box.style.display = "none";
         });
+        if (panel.dataset.panel === "wbdensity") {
+          wbgRoiImage = null;
+          wbgRoiSource = null;
+          wbgRoiImageData = null;
+          wbgRoiItems = [];
+          wbgRoiDrag = null;
+          const canvas = $("wbg-roi-canvas");
+          if (canvas) {
+            canvas.width = 960;
+            canvas.height = 520;
+          }
+          $("wbg-roi-stage")?.classList.remove("has-image");
+          wbgRoiDraw();
+          wbgRoiStatus("已清空 WB 图片和 ROI 框选。", "ok");
+        }
         setPanelDraftStatus(panel, "已清空本模块");
       }
 
@@ -688,7 +708,7 @@
         qpcrdata: ["ΔΔCt 以所选内参和对照样本为基准。", "技术重复统计只能说明孔级差异，不能替代生物学重复统计。"],
         qmulti: ["多基因分析会按内参基因归一化并尝试自动配对样本。", "导入后请先检查孔板布局和忽略孔。"],
         bca: ["BCA 浓度视为 RIPA 裂解液原液浓度。", "加入高倍 Loading buffer 后按体积稀释，不考虑煮样蒸发损失。"],
-        wbdensity: ["背景扣除后再做目的/内参归一化。", "同一膜内比较更可靠，跨膜比较建议加入桥接样本。"],
+        wbdensity: ["图片 ROI 默认按暗带积分灰度 sum(255 - gray) 读取。", "背景扣除后再做目的/内参归一化。", "同一膜内比较更可靠，跨膜比较建议加入桥接样本。"],
         virus: ["质粒和 PEI 只做体积换算。", "包装条件仍需按细胞系、培养皿和实验室 SOP 调整。"]
       };
 
@@ -5159,6 +5179,434 @@
         calculateBcaAll();
       }
 
+      function wbgRoiStatus(message, tone = "ok") {
+        const box = $("wbg-roi-status");
+        if (!box) return;
+        box.className = "notice " + tone;
+        box.innerHTML = message;
+      }
+
+      function wbgRoiKindLabel(kind) {
+        return {
+          target: "目的条带",
+          ref: "内参条带",
+          "target-bg": "目的背景",
+          "ref-bg": "内参背景"
+        }[kind] || kind;
+      }
+
+      function wbgRoiShortLabel(kind) {
+        return {
+          target: "T",
+          ref: "R",
+          "target-bg": "T-bg",
+          "ref-bg": "R-bg"
+        }[kind] || kind;
+      }
+
+      function wbgRoiColor(kind) {
+        if (kind === "target") return "#08766d";
+        if (kind === "ref") return "#d97706";
+        return "#6b7280";
+      }
+
+      function wbgRoiSignalClass(kind) {
+        if (kind === "target") return "roi-kind-target";
+        if (kind === "ref") return "roi-kind-ref";
+        return "roi-kind-bg";
+      }
+
+      function wbgRoiCanvasPoint(event) {
+        const canvas = $("wbg-roi-canvas");
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: Math.max(0, Math.min(canvas.width, (event.clientX - rect.left) * canvas.width / rect.width)),
+          y: Math.max(0, Math.min(canvas.height, (event.clientY - rect.top) * canvas.height / rect.height))
+        };
+      }
+
+      function wbgRoiNormalizeRect(a, b) {
+        const x = Math.round(Math.min(a.x, b.x));
+        const y = Math.round(Math.min(a.y, b.y));
+        const w = Math.round(Math.abs(a.x - b.x));
+        const h = Math.round(Math.abs(a.y - b.y));
+        return { x, y, w, h };
+      }
+
+      function wbgRoiSignal(gray, mode) {
+        return mode === "raw" ? gray : 255 - gray;
+      }
+
+      function wbgRoiStats(rect, mode) {
+        if (!wbgRoiImageData || rect.w <= 0 || rect.h <= 0) return null;
+        const data = wbgRoiImageData.data;
+        const imgW = wbgRoiImageData.width;
+        const x0 = Math.max(0, Math.min(wbgRoiImageData.width - 1, rect.x));
+        const y0 = Math.max(0, Math.min(wbgRoiImageData.height - 1, rect.y));
+        const x1 = Math.max(x0 + 1, Math.min(wbgRoiImageData.width, rect.x + rect.w));
+        const y1 = Math.max(y0 + 1, Math.min(wbgRoiImageData.height, rect.y + rect.h));
+        let graySum = 0;
+        let signalSum = 0;
+        let area = 0;
+        for (let y = y0; y < y1; y += 1) {
+          for (let x = x0; x < x1; x += 1) {
+            const offset = (y * imgW + x) * 4;
+            const gray = data[offset] * 0.2126 + data[offset + 1] * 0.7152 + data[offset + 2] * 0.0722;
+            graySum += gray;
+            signalSum += wbgRoiSignal(gray, mode);
+            area += 1;
+          }
+        }
+        return {
+          area,
+          meanGray: area ? graySum / area : NaN,
+          meanSignal: area ? signalSum / area : NaN,
+          integrated: signalSum
+        };
+      }
+
+      function wbgRoiBackgroundFor(item) {
+        const bgKind = item.kind === "target" ? "target-bg" : item.kind === "ref" ? "ref-bg" : "";
+        if (!bgKind) return null;
+        const matches = wbgRoiItems.filter((roi) => roi.kind === bgKind && roi.group === item.group && roi.lane === item.lane && roi.mode === item.mode && roi.stats);
+        if (!matches.length) return null;
+        const area = matches.reduce((sum, roi) => sum + roi.stats.area, 0);
+        const signal = matches.reduce((sum, roi) => sum + roi.stats.meanSignal * roi.stats.area, 0);
+        return area > 0 ? { meanSignal: signal / area, count: matches.length } : null;
+      }
+
+      function wbgRoiCorrectedSignal(item) {
+        if (!item.stats) return NaN;
+        if (item.kind !== "target" && item.kind !== "ref") return NaN;
+        const bg = wbgRoiBackgroundFor(item);
+        return item.stats.integrated - (bg ? bg.meanSignal * item.stats.area : 0);
+      }
+
+      function wbgRoiDraw() {
+        const canvas = $("wbg-roi-canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (wbgRoiSource) {
+          ctx.drawImage(wbgRoiSource, 0, 0, canvas.width, canvas.height);
+        } else {
+          ctx.fillStyle = "rgba(255,255,255,0.65)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        wbgRoiItems.forEach((item, index) => {
+          const color = wbgRoiColor(item.kind);
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(2, canvas.width / 600);
+          ctx.setLineDash(item.kind.includes("bg") ? [8, 5] : []);
+          ctx.strokeRect(item.rect.x + 0.5, item.rect.y + 0.5, item.rect.w, item.rect.h);
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.16;
+          ctx.fillRect(item.rect.x, item.rect.y, item.rect.w, item.rect.h);
+          ctx.globalAlpha = 0.92;
+          const label = `${index + 1} ${wbgRoiShortLabel(item.kind)} ${item.group}/${item.lane}`;
+          ctx.font = `${Math.max(12, Math.round(canvas.width / 70))}px Arial`;
+          const labelW = ctx.measureText(label).width + 8;
+          const labelY = Math.max(18, item.rect.y - 4);
+          ctx.fillRect(item.rect.x, labelY - 16, labelW, 18);
+          ctx.fillStyle = "#fff";
+          ctx.fillText(label, item.rect.x + 4, labelY - 3);
+          ctx.restore();
+        });
+        if (wbgRoiDrag) {
+          const rect = wbgRoiNormalizeRect(wbgRoiDrag.start, wbgRoiDrag.current);
+          ctx.save();
+          ctx.strokeStyle = wbgRoiColor(wbgRoiDrag.kind);
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
+          ctx.restore();
+        }
+      }
+
+      function wbgRoiRenderResult() {
+        if (!wbgRoiItems.length) {
+          const box = $("wbg-roi-result");
+          if (box) {
+            box.className = "result";
+            box.innerHTML = "";
+            box.style.display = "none";
+          }
+          wbgRoiStatus("已经清空框选。上传图片后拖框选择条带。", "ok");
+          return;
+        }
+        const rows = wbgRoiItems.map((item, index) => {
+          const bg = wbgRoiBackgroundFor(item);
+          const corrected = wbgRoiCorrectedSignal(item);
+          return [
+            fmtInt(index + 1),
+            escapeHtml(item.group),
+            escapeHtml(item.lane),
+            `<span class="${wbgRoiSignalClass(item.kind)}">${escapeHtml(wbgRoiKindLabel(item.kind))}</span>`,
+            `${fmtInt(item.rect.x)}, ${fmtInt(item.rect.y)}, ${fmtInt(item.rect.w)}×${fmtInt(item.rect.h)}`,
+            fmtInt(item.stats.area),
+            fmt(item.stats.meanGray, 2),
+            fmt(item.stats.integrated, 1),
+            isFinite(corrected) ? fmt(corrected, 1) : "—",
+            bg ? `已扣 ${bg.count} 个背景框` : (item.kind === "target" || item.kind === "ref" ? "未扣背景" : "背景框")
+          ];
+        });
+        const bandCount = wbgRoiItems.filter((item) => item.kind === "target" || item.kind === "ref").length;
+        setResult("wbg-roi-result", `
+          <p class="result-title">WB 图片灰度读取结果</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmtInt(wbgRoiItems.length)}</strong><span>ROI 框总数</span></div>
+            <div class="metric"><strong>${fmtInt(bandCount)}</strong><span>条带框数</span></div>
+            <div class="metric"><strong>${$("wbg-roi-mode").value === "dark" ? "暗带积分" : "原始灰度"}</strong><span>当前算法</span></div>
+          </div>
+          ${table(["#", "组名", "泳道", "类型", "x,y,w×h", "面积", "平均灰度", "积分灰度", "扣背景积分", "背景状态"], rows)}
+          <div class="notice ok"><strong>说明：</strong>暗带信号按 sum(255 - gray) 计算；扣背景积分 = 条带积分 - 背景平均信号 × 条带面积。</div>
+        `, "ok");
+        wbgRoiStatus(`已读取 ${fmtInt(wbgRoiItems.length)} 个 ROI。可继续框选，或点击“生成到灰度表”。`, "ok");
+      }
+
+      function wbgRoiAddRect(rect) {
+        if (!wbgRoiImageData) {
+          wbgRoiStatus("请先上传 WB 图片。", "warn");
+          return;
+        }
+        if (rect.w < 3 || rect.h < 3) {
+          wbgRoiStatus("框选区域太小，请重新拖拽一个覆盖条带的矩形。", "warn");
+          return;
+        }
+        const mode = $("wbg-roi-mode").value || "dark";
+        const stats = wbgRoiStats(rect, mode);
+        if (!stats || !stats.area) {
+          wbgRoiStatus("无法读取这个区域的像素，请重新框选。", "danger");
+          return;
+        }
+        const item = {
+          group: $("wbg-roi-group").value.trim() || "Group_1",
+          lane: $("wbg-roi-lane").value.trim() || String(wbgRoiItems.length + 1),
+          kind: $("wbg-roi-kind").value,
+          mode,
+          rect,
+          stats
+        };
+        wbgRoiItems.push(item);
+        wbgRoiDraw();
+        wbgRoiRenderResult();
+      }
+
+      function wbgTiffTypeSize(type) {
+        return { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8 }[type] || 0;
+      }
+
+      function wbgTiffReadValues(view, little, entryOffset) {
+        const type = view.getUint16(entryOffset + 2, little);
+        const count = view.getUint32(entryOffset + 4, little);
+        const size = wbgTiffTypeSize(type);
+        const valueBytes = size * count;
+        const valueOffset = valueBytes <= 4 ? entryOffset + 8 : view.getUint32(entryOffset + 8, little);
+        const values = [];
+        for (let i = 0; i < count; i += 1) {
+          const offset = valueOffset + i * size;
+          if (type === 1 || type === 2) values.push(view.getUint8(offset));
+          else if (type === 3) values.push(view.getUint16(offset, little));
+          else if (type === 4) values.push(view.getUint32(offset, little));
+          else if (type === 5) {
+            const num = view.getUint32(offset, little);
+            const den = view.getUint32(offset + 4, little);
+            values.push(den ? num / den : NaN);
+          }
+        }
+        return count === 1 ? values[0] : values;
+      }
+
+      function wbgDecodeTiff(arrayBuffer) {
+        const view = new DataView(arrayBuffer);
+        const byteOrder = String.fromCharCode(view.getUint8(0), view.getUint8(1));
+        const little = byteOrder === "II";
+        if (!little && byteOrder !== "MM") throw new Error("不是标准 TIFF 字节序。");
+        if (view.getUint16(2, little) !== 42) throw new Error("不是可识别的 TIFF 文件。");
+        const ifdOffset = view.getUint32(4, little);
+        const tagCount = view.getUint16(ifdOffset, little);
+        const tags = new Map();
+        for (let i = 0; i < tagCount; i += 1) {
+          const entryOffset = ifdOffset + 2 + i * 12;
+          tags.set(view.getUint16(entryOffset, little), wbgTiffReadValues(view, little, entryOffset));
+        }
+        const width = tags.get(256);
+        const height = tags.get(257);
+        const bits = Array.isArray(tags.get(258)) ? tags.get(258) : [tags.get(258) || 8];
+        const compression = tags.get(259) || 1;
+        const photometric = tags.get(262);
+        const stripOffsets = Array.isArray(tags.get(273)) ? tags.get(273) : [tags.get(273)];
+        const stripByteCounts = Array.isArray(tags.get(279)) ? tags.get(279) : [tags.get(279)];
+        const samplesPerPixel = tags.get(277) || 1;
+        if (!width || !height) throw new Error("TIFF 缺少宽高信息。");
+        if (compression !== 1) throw new Error("当前网页只支持未压缩 TIFF；请导出 PNG/JPG 或未压缩 8-bit TIFF。");
+        if (!bits.every((bit) => bit === 8)) throw new Error("当前网页只支持 8-bit TIFF；请先导出为 8-bit 灰度或 PNG。");
+        if (![1, 3, 4].includes(samplesPerPixel)) throw new Error("当前网页只支持灰度、RGB 或 RGBA TIFF。");
+        const rgba = new Uint8ClampedArray(width * height * 4);
+        let pixelIndex = 0;
+        stripOffsets.forEach((stripOffset, stripIndex) => {
+          const byteCount = stripByteCounts[stripIndex] || 0;
+          for (let offset = stripOffset; offset < stripOffset + byteCount && pixelIndex < width * height; offset += samplesPerPixel) {
+            let r;
+            let g;
+            let b;
+            if (samplesPerPixel === 1) {
+              const sample = view.getUint8(offset);
+              const gray = photometric === 0 ? 255 - sample : sample;
+              r = gray;
+              g = gray;
+              b = gray;
+            } else {
+              r = view.getUint8(offset);
+              g = view.getUint8(offset + 1);
+              b = view.getUint8(offset + 2);
+            }
+            const out = pixelIndex * 4;
+            rgba[out] = r;
+            rgba[out + 1] = g;
+            rgba[out + 2] = b;
+            rgba[out + 3] = 255;
+            pixelIndex += 1;
+          }
+        });
+        if (pixelIndex < width * height) throw new Error("TIFF 像素数据不完整。");
+        return new ImageData(rgba, width, height);
+      }
+
+      function wbgUseImageData(imageData, fileName) {
+        const canvas = $("wbg-roi-canvas");
+        canvas.width = imageData.width;
+        canvas.height = imageData.height;
+        const source = document.createElement("canvas");
+        source.width = imageData.width;
+        source.height = imageData.height;
+        source.getContext("2d").putImageData(imageData, 0, 0);
+        wbgRoiImage = null;
+        wbgRoiSource = source;
+        wbgRoiImageData = imageData;
+        $("wbg-roi-stage").classList.add("has-image");
+        wbgRoiItems = [];
+        wbgRoiDrag = null;
+        wbgRoiDraw();
+        wbgRoiRenderResult();
+        wbgRoiStatus(`已载入 ${escapeHtml(fileName)}，尺寸 ${fmtInt(canvas.width)} × ${fmtInt(canvas.height)} px。现在可以拖框选条带。`, "ok");
+      }
+
+      async function wbgRoiLoadImage() {
+        const file = $("wbg-image-file").files && $("wbg-image-file").files[0];
+        if (!file) return;
+        try {
+          if (/\.tiff?$/i.test(file.name)) {
+            const imageData = wbgDecodeTiff(await file.arrayBuffer());
+            wbgUseImageData(imageData, file.name);
+            return;
+          }
+          const url = URL.createObjectURL(file);
+          const image = new Image();
+          image.onload = () => {
+            URL.revokeObjectURL(url);
+            wbgRoiImage = image;
+            wbgRoiSource = image;
+            const canvas = $("wbg-roi-canvas");
+            canvas.width = image.naturalWidth || image.width;
+            canvas.height = image.naturalHeight || image.height;
+            $("wbg-roi-stage").classList.add("has-image");
+            wbgRoiItems = [];
+            wbgRoiDrag = null;
+            wbgRoiDraw();
+            wbgRoiImageData = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height);
+            wbgRoiRenderResult();
+            wbgRoiStatus(`已载入 ${escapeHtml(file.name)}，尺寸 ${fmtInt(canvas.width)} × ${fmtInt(canvas.height)} px。现在可以拖框选条带。`, "ok");
+          };
+          image.onerror = () => {
+            URL.revokeObjectURL(url);
+            wbgRoiStatus("图片读取失败，请换一张 PNG/JPG/JPEG，或未压缩 8-bit TIFF。", "danger");
+          };
+          image.src = url;
+        } catch (error) {
+          wbgRoiStatus(`图片读取失败：${escapeHtml(error.message)}`, "danger");
+        }
+      }
+
+      function wbgRoiPointerDown(event) {
+        if (!wbgRoiImageData) {
+          wbgRoiStatus("请先上传 WB 图片。", "warn");
+          return;
+        }
+        event.preventDefault();
+        const start = wbgRoiCanvasPoint(event);
+        wbgRoiDrag = {
+          start,
+          current: start,
+          kind: $("wbg-roi-kind").value
+        };
+        $("wbg-roi-canvas").setPointerCapture?.(event.pointerId);
+        wbgRoiDraw();
+      }
+
+      function wbgRoiPointerMove(event) {
+        if (!wbgRoiDrag) return;
+        event.preventDefault();
+        wbgRoiDrag.current = wbgRoiCanvasPoint(event);
+        wbgRoiDraw();
+      }
+
+      function wbgRoiPointerUp(event) {
+        if (!wbgRoiDrag) return;
+        event.preventDefault();
+        wbgRoiDrag.current = wbgRoiCanvasPoint(event);
+        const rect = wbgRoiNormalizeRect(wbgRoiDrag.start, wbgRoiDrag.current);
+        wbgRoiDrag = null;
+        wbgRoiAddRect(rect);
+      }
+
+      function wbgRoiUndo() {
+        wbgRoiItems.pop();
+        wbgRoiDraw();
+        wbgRoiRenderResult();
+      }
+
+      function wbgRoiClear() {
+        wbgRoiItems = [];
+        wbgRoiDrag = null;
+        wbgRoiDraw();
+        wbgRoiRenderResult();
+      }
+
+      function wbgRoiGeneratedRows() {
+        const map = new Map();
+        wbgRoiItems.forEach((item) => {
+          if (item.kind !== "target" && item.kind !== "ref") return;
+          const key = `${item.group}\u0001${item.lane}`;
+          if (!map.has(key)) map.set(key, { group: item.group, lane: item.lane, target: 0, ref: 0, targetN: 0, refN: 0 });
+          const entry = map.get(key);
+          const corrected = wbgRoiCorrectedSignal(item);
+          if (!isFinite(corrected)) return;
+          if (item.kind === "target") {
+            entry.target += corrected;
+            entry.targetN += 1;
+          } else {
+            entry.ref += corrected;
+            entry.refN += 1;
+          }
+        });
+        return Array.from(map.values()).filter((entry) => entry.targetN > 0 && entry.refN > 0 && entry.target > 0 && entry.ref > 0);
+      }
+
+      function wbgRoiToTable() {
+        const rows = wbgRoiGeneratedRows();
+        if (!rows.length) {
+          wbgRoiStatus("还没有成对的目的条带和内参条带。请至少为同一组名/泳道各框选一个目的条带和一个内参条带。", "warn");
+          return false;
+        }
+        $("wbg-data").value = rows.map((row) => `${row.group}, ${row.lane}, ${fmtData(row.target, 3)}, ${fmtData(row.ref, 3)}`).join("\n");
+        $("wbg-bg-target").value = "0";
+        $("wbg-bg-ref").value = "0";
+        wbgRoiStatus(`已生成 ${fmtInt(rows.length)} 行到灰度表，并自动运行 WB 灰度分析。`, "ok");
+        calculateWbGray();
+        return true;
+      }
+
       function parseWbGrayRows(text) {
         return splitLines(text).map((line, index) => {
           const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
@@ -5635,6 +6083,17 @@
         $("qme-prism-download").addEventListener("click", downloadQpcrMultiPrismCsv);
         $("bca-calc").addEventListener("click", calculateBcaAll);
         $("bca-example").addEventListener("click", fillBcaExample);
+        $("wbg-image-file").addEventListener("change", wbgRoiLoadImage);
+        $("wbg-roi-canvas").addEventListener("pointerdown", wbgRoiPointerDown);
+        $("wbg-roi-canvas").addEventListener("pointermove", wbgRoiPointerMove);
+        $("wbg-roi-canvas").addEventListener("pointerup", wbgRoiPointerUp);
+        $("wbg-roi-canvas").addEventListener("pointercancel", () => {
+          wbgRoiDrag = null;
+          wbgRoiDraw();
+        });
+        $("wbg-roi-undo").addEventListener("click", wbgRoiUndo);
+        $("wbg-roi-clear").addEventListener("click", wbgRoiClear);
+        $("wbg-roi-to-table").addEventListener("click", wbgRoiToTable);
         $("wbg-calc").addEventListener("click", calculateWbGray);
         $("wbg-example").addEventListener("click", fillWbGrayExample);
         $("wbg-download").addEventListener("click", downloadWbGrayCsv);
