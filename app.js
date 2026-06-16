@@ -21,6 +21,8 @@
       let wbgRoiImageData = null;
       let wbgRoiItems = [];
       let wbgRoiDrag = null;
+      let wbgMontageRows = [];
+      let wbgMontageDownloadUrl = "";
       const vaPlateWells = new Map();
       const vaPlateSelectedWells = new Set();
       let qmePrimaryWell = "A1";
@@ -28,7 +30,7 @@
       let musicObjectUrl = "";
       let deferredInstallPrompt = null;
       const themeKey = "w2g-calculator-theme";
-      const APP_VERSION = "v21";
+      const APP_VERSION = "v22";
       const draftPrefix = "w2g-calculator-draft:";
       let pendingServiceWorker = null;
       let reloadingForUpdate = false;
@@ -534,6 +536,8 @@
           wbgRoiImageData = null;
           wbgRoiItems = [];
           wbgRoiDrag = null;
+          wbgMontageRows = [];
+          wbgMontageClearDownloadUrl();
           const canvas = $("wbg-roi-canvas");
           if (canvas) {
             canvas.width = 960;
@@ -5191,7 +5195,8 @@
           target: "目的条带",
           ref: "内参条带",
           "target-bg": "目的背景",
-          "ref-bg": "内参背景"
+          "ref-bg": "内参背景",
+          montage: "组图裁剪行"
         }[kind] || kind;
       }
 
@@ -5200,19 +5205,22 @@
           target: "T",
           ref: "R",
           "target-bg": "T-bg",
-          "ref-bg": "R-bg"
+          "ref-bg": "R-bg",
+          montage: "组图"
         }[kind] || kind;
       }
 
       function wbgRoiColor(kind) {
         if (kind === "target") return "#08766d";
         if (kind === "ref") return "#d97706";
+        if (kind === "montage") return "#7c3aed";
         return "#6b7280";
       }
 
       function wbgRoiSignalClass(kind) {
         if (kind === "target") return "roi-kind-target";
         if (kind === "ref") return "roi-kind-ref";
+        if (kind === "montage") return "roi-kind-montage";
         return "roi-kind-bg";
       }
 
@@ -5292,7 +5300,11 @@
           ctx.fillStyle = "rgba(255,255,255,0.65)";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-        wbgRoiItems.forEach((item, index) => {
+        const drawableItems = [
+          ...wbgRoiItems.map((item) => ({ ...item, drawLabel: `${wbgRoiShortLabel(item.kind)} ${item.group}/${item.lane}` })),
+          ...wbgMontageRows.map((row) => ({ kind: "montage", rect: row.rect, drawLabel: `${row.protein} ${row.kd}` }))
+        ];
+        drawableItems.forEach((item, index) => {
           const color = wbgRoiColor(item.kind);
           ctx.save();
           ctx.strokeStyle = color;
@@ -5303,7 +5315,7 @@
           ctx.globalAlpha = 0.16;
           ctx.fillRect(item.rect.x, item.rect.y, item.rect.w, item.rect.h);
           ctx.globalAlpha = 0.92;
-          const label = `${index + 1} ${wbgRoiShortLabel(item.kind)} ${item.group}/${item.lane}`;
+          const label = `${index + 1} ${item.drawLabel || wbgRoiShortLabel(item.kind)}`;
           ctx.font = `${Math.max(12, Math.round(canvas.width / 70))}px Arial`;
           const labelW = ctx.measureText(label).width + 8;
           const labelY = Math.max(18, item.rect.y - 4);
@@ -5364,6 +5376,61 @@
         wbgRoiStatus(`已读取 ${fmtInt(wbgRoiItems.length)} 个 ROI。可继续框选，或点击“生成到灰度表”。`, "ok");
       }
 
+      function wbgMontageClearDownloadUrl() {
+        if (wbgMontageDownloadUrl) URL.revokeObjectURL(wbgMontageDownloadUrl);
+        wbgMontageDownloadUrl = "";
+        const button = $("wbg-montage-download");
+        if (button) button.disabled = true;
+      }
+
+      function wbgMontageRowsTable() {
+        return table(["#", "蛋白", "kDa", "裁剪区域 x,y,w×h"], wbgMontageRows.map((row, index) => [
+          fmtInt(index + 1),
+          escapeHtml(row.protein),
+          escapeHtml(row.kd),
+          `${fmtInt(row.rect.x)}, ${fmtInt(row.rect.y)}, ${fmtInt(row.rect.w)}×${fmtInt(row.rect.h)}`
+        ]));
+      }
+
+      function wbgMontageRenderList(message = "") {
+        const box = $("wbg-montage-result");
+        if (!box) return;
+        if (!wbgMontageRows.length) {
+          box.className = "result";
+          box.innerHTML = "";
+          box.style.display = "none";
+          return;
+        }
+        setResult("wbg-montage-result", `
+          <p class="result-title">WB 条带组图草稿</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmtInt(wbgMontageRows.length)}</strong><span>已加入条带行</span></div>
+            <div class="metric"><strong>${escapeHtml($("wbg-montage-groups").value || "未填写")}</strong><span>组别标签</span></div>
+            <div class="metric"><strong>${escapeHtml($("wbg-montage-sample").value || "未填写")}</strong><span>样品名称</span></div>
+          </div>
+          ${message ? `<div class="notice ok">${message}</div>` : ""}
+          ${wbgMontageRowsTable()}
+        `, "ok");
+      }
+
+      function wbgMontageAddRect(rect) {
+        if (!wbgRoiSource) {
+          wbgRoiStatus("请先上传 WB 图片。", "warn");
+          return;
+        }
+        if (rect.w < 5 || rect.h < 5) {
+          wbgRoiStatus("组图裁剪区域太小，请框住一整行条带。", "warn");
+          return;
+        }
+        const protein = $("wbg-montage-protein").value.trim() || `Protein_${wbgMontageRows.length + 1}`;
+        const kd = $("wbg-montage-kd").value.trim() || "";
+        wbgMontageRows.push({ protein, kd, rect });
+        wbgMontageClearDownloadUrl();
+        wbgRoiDraw();
+        wbgMontageRenderList(`已加入组图行：${escapeHtml(protein)}${kd ? ` / ${escapeHtml(kd)}` : ""}。`);
+        wbgRoiStatus("已加入组图裁剪行。可继续修改蛋白名/kDa 后框下一行，或点击“生成条带组图”。", "ok");
+      }
+
       function wbgRoiAddRect(rect) {
         if (!wbgRoiImageData) {
           wbgRoiStatus("请先上传 WB 图片。", "warn");
@@ -5371,6 +5438,10 @@
         }
         if (rect.w < 3 || rect.h < 3) {
           wbgRoiStatus("框选区域太小，请重新拖拽一个覆盖条带的矩形。", "warn");
+          return;
+        }
+        if ($("wbg-roi-kind").value === "montage") {
+          wbgMontageAddRect(rect);
           return;
         }
         const mode = $("wbg-roi-mode").value || "dark";
@@ -5486,6 +5557,8 @@
         wbgRoiImageData = imageData;
         $("wbg-roi-stage").classList.add("has-image");
         wbgRoiItems = [];
+        wbgMontageRows = [];
+        wbgMontageClearDownloadUrl();
         wbgRoiDrag = null;
         wbgRoiDraw();
         wbgRoiRenderResult();
@@ -5512,6 +5585,8 @@
             canvas.height = image.naturalHeight || image.height;
             $("wbg-roi-stage").classList.add("has-image");
             wbgRoiItems = [];
+            wbgMontageRows = [];
+            wbgMontageClearDownloadUrl();
             wbgRoiDrag = null;
             wbgRoiDraw();
             wbgRoiImageData = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height);
@@ -5605,6 +5680,145 @@
         wbgRoiStatus(`已生成 ${fmtInt(rows.length)} 行到灰度表，并自动运行 WB 灰度分析。`, "ok");
         calculateWbGray();
         return true;
+      }
+
+      function wbgMontageLabels() {
+        return splitLines(($("wbg-montage-groups").value || "").replace(/[，,;；]+/g, "\n")).map((label) => label.trim()).filter(Boolean);
+      }
+
+      function wbgMontageRender() {
+        if (!wbgRoiSource || !wbgMontageRows.length) {
+          wbgRoiStatus("请先上传 WB 图片，并至少添加一行“组图裁剪行”。", "warn");
+          return false;
+        }
+        const groups = wbgMontageLabels();
+        const sample = $("wbg-montage-sample").value.trim();
+        const angle = (parseFloat($("wbg-montage-angle").value) || 0) * Math.PI / 180;
+        const maxCropW = Math.max(...wbgMontageRows.map((row) => row.rect.w));
+        const maxCropH = Math.max(...wbgMontageRows.map((row) => row.rect.h));
+        const cropScale = Math.max(0.35, Math.min(2, 300 / Math.max(maxCropW, 1)));
+        const cropW = Math.round(maxCropW * cropScale);
+        const rowGap = Math.max(8, Math.round(maxCropH * cropScale * 0.22));
+        const topPad = groups.length ? 88 : 30;
+        const leftW = 128;
+        const rightW = 96;
+        const margin = 20;
+        const bottomPad = sample ? 72 : 30;
+        const rowHeights = wbgMontageRows.map((row) => Math.max(22, Math.round(row.rect.h * cropScale)));
+        const cropH = rowHeights.reduce((sum, h) => sum + h, 0) + rowGap * Math.max(0, rowHeights.length - 1);
+        const outW = margin + leftW + cropW + rightW + margin;
+        const outH = topPad + cropH + bottomPad;
+        const canvas = document.createElement("canvas");
+        canvas.width = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, outW, outH);
+        const cropX = margin + leftW;
+        if (groups.length) {
+          ctx.save();
+          ctx.fillStyle = "#000";
+          ctx.font = "700 17px Arial, sans-serif";
+          ctx.textAlign = angle === 0 ? "center" : "left";
+          ctx.textBaseline = "bottom";
+          const laneW = cropW / groups.length;
+          groups.forEach((group, index) => {
+            const x = cropX + laneW * (index + 0.5);
+            const y = topPad - 8;
+            ctx.save();
+            ctx.translate(x, y);
+            if (angle) ctx.rotate(angle);
+            ctx.fillText(group, 0, 0);
+            ctx.restore();
+          });
+          ctx.restore();
+        }
+        let y = topPad;
+        wbgMontageRows.forEach((row, index) => {
+          const h = rowHeights[index];
+          const w = Math.round(row.rect.w * cropScale);
+          const drawX = cropX + Math.round((cropW - w) / 2);
+          ctx.drawImage(wbgRoiSource, row.rect.x, row.rect.y, row.rect.w, row.rect.h, drawX, y, w, h);
+          ctx.strokeStyle = "#111";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(drawX + 0.5, y + 0.5, w, h);
+          ctx.fillStyle = "#000";
+          ctx.font = "700 17px Arial, sans-serif";
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillText(row.protein, margin + leftW - 12, y + h / 2);
+          ctx.textAlign = "left";
+          ctx.fillText(row.kd, cropX + cropW + 18, y + h / 2);
+          y += h + rowGap;
+        });
+        if (sample) {
+          const lineY = topPad + cropH + 16;
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 5;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(cropX, lineY);
+          ctx.lineTo(cropX + cropW, lineY);
+          ctx.stroke();
+          ctx.fillStyle = "#000";
+          ctx.font = "700 18px Arial, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillText(sample, cropX + cropW / 2, lineY + 14);
+        }
+        wbgMontageClearDownloadUrl();
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          wbgMontageDownloadUrl = URL.createObjectURL(blob);
+          $("wbg-montage-download").disabled = false;
+        }, "image/png");
+        setResult("wbg-montage-result", `
+          <p class="result-title">WB 条带组图</p>
+          <div class="metric-grid">
+            <div class="metric"><strong>${fmtInt(wbgMontageRows.length)}</strong><span>条带行</span></div>
+            <div class="metric"><strong>${escapeHtml(groups.join(", ") || "未填写")}</strong><span>组别标签</span></div>
+            <div class="metric"><strong>${escapeHtml(sample || "未填写")}</strong><span>样品名称</span></div>
+            <div class="metric"><strong>${fmtInt(outW)} × ${fmtInt(outH)} px</strong><span>输出尺寸</span></div>
+          </div>
+          <div class="wbg-montage-preview">${canvas.outerHTML}</div>
+          ${wbgMontageRowsTable()}
+        `, "ok");
+        const preview = $("wbg-montage-result").querySelector(".wbg-montage-preview");
+        const previewCanvas = preview.querySelector("canvas");
+        previewCanvas.getContext("2d").drawImage(canvas, 0, 0);
+        wbgRoiStatus("条带组图已生成。可以点击“下载 PNG”。", "ok");
+        return true;
+      }
+
+      function wbgMontageUndo() {
+        wbgMontageRows.pop();
+        wbgMontageClearDownloadUrl();
+        wbgRoiDraw();
+        wbgMontageRenderList("已删除最后一行。");
+      }
+
+      function wbgMontageClear() {
+        wbgMontageRows = [];
+        wbgMontageClearDownloadUrl();
+        wbgRoiDraw();
+        const box = $("wbg-montage-result");
+        if (box) {
+          box.className = "result";
+          box.innerHTML = "";
+          box.style.display = "none";
+        }
+        wbgRoiStatus("已清空条带组图行。", "ok");
+      }
+
+      function wbgMontageDownload() {
+        if (!wbgMontageDownloadUrl) {
+          wbgMontageRender();
+          if (!wbgMontageDownloadUrl) return;
+        }
+        const link = document.createElement("a");
+        link.href = wbgMontageDownloadUrl;
+        link.download = "wb_band_montage.png";
+        link.click();
       }
 
       function parseWbGrayRows(text) {
@@ -6094,6 +6308,10 @@
         $("wbg-roi-undo").addEventListener("click", wbgRoiUndo);
         $("wbg-roi-clear").addEventListener("click", wbgRoiClear);
         $("wbg-roi-to-table").addEventListener("click", wbgRoiToTable);
+        $("wbg-montage-undo").addEventListener("click", wbgMontageUndo);
+        $("wbg-montage-clear").addEventListener("click", wbgMontageClear);
+        $("wbg-montage-render").addEventListener("click", wbgMontageRender);
+        $("wbg-montage-download").addEventListener("click", wbgMontageDownload);
         $("wbg-calc").addEventListener("click", calculateWbGray);
         $("wbg-example").addEventListener("click", fillWbGrayExample);
         $("wbg-download").addEventListener("click", downloadWbGrayCsv);

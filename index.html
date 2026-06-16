@@ -25,7 +25,7 @@
       <div class="hero-side">
         <div class="hero-controls">
           <div class="status-chip">哎哟，你干嘛！！！</div>
-          <div class="version-chip" id="app-version">v21</div>
+          <div class="version-chip" id="app-version">v22</div>
           <div class="signature-chip">金吾卫w²g</div>
           <button class="theme-toggle" type="button" id="theme-toggle" aria-pressed="false" aria-label="切换白天和夜间模式">
             <span class="theme-orbit" aria-hidden="true"><span class="theme-dot"></span></span>
@@ -1330,6 +1330,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
                   <option value="ref">内参条带</option>
                   <option value="target-bg">目的背景</option>
                   <option value="ref-bg">内参背景</option>
+                  <option value="montage">组图裁剪行</option>
                 </select>
               </div>
               <div>
@@ -1346,9 +1347,46 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
               <button class="action small" type="button" id="wbg-roi-to-table">生成到灰度表</button>
             </div>
             <div id="wbg-roi-status" class="notice ok">建议先框选同一泳道附近的背景，再框选目的条带和内参条带；扣背景值会自动按面积校正。</div>
+            <div class="panel" style="margin-top:12px;">
+              <div class="section-title">条带组图参数</div>
+              <div class="grid">
+                <div>
+                  <label for="wbg-montage-protein">当前条带名称</label>
+                  <input id="wbg-montage-protein" type="text" value="HER2" />
+                </div>
+                <div>
+                  <label for="wbg-montage-kd">当前 kDa 大小</label>
+                  <input id="wbg-montage-kd" type="text" value="185 KD" />
+                </div>
+                <div>
+                  <label for="wbg-montage-groups">组别 / 泳道标签</label>
+                  <input id="wbg-montage-groups" type="text" value="Vector, OE" />
+                </div>
+                <div>
+                  <label for="wbg-montage-sample">样品 / 细胞名称</label>
+                  <input id="wbg-montage-sample" type="text" value="MDA-MB-231" />
+                </div>
+                <div>
+                  <label for="wbg-montage-angle">组别标签角度</label>
+                  <select id="wbg-montage-angle">
+                    <option value="-55">倾斜 -55°</option>
+                    <option value="-40">倾斜 -40°</option>
+                    <option value="0">水平</option>
+                  </select>
+                </div>
+              </div>
+              <div class="actions">
+                <button class="action secondary small" type="button" id="wbg-montage-undo">删除最后一行</button>
+                <button class="action secondary small" type="button" id="wbg-montage-clear">清空组图</button>
+                <button class="action small" type="button" id="wbg-montage-render">生成条带组图</button>
+                <button class="action secondary small" type="button" id="wbg-montage-download" disabled>下载 PNG</button>
+              </div>
+              <div class="help">使用方法：把“框选类型”切到“组图裁剪行”，在图上框住某个蛋白的一整行条带，然后填写蛋白名和 kDa。每框一次加入一行。</div>
+            </div>
           </div>
         </div>
         <div id="wbg-roi-result" class="result" aria-live="polite"></div>
+        <div id="wbg-montage-result" class="result" aria-live="polite"></div>
 
         <h3>二、灰度数据</h3>
         <div class="two-col">
@@ -1419,6 +1457,9 @@ Treat_2, 3, 8800, 9850</textarea>
           <div><span class="formula">暗带积分灰度 = sum(255 - gray)</span></div>
           <div><span class="formula">扣背景积分 = 条带积分灰度 - 背景平均信号 × 条带面积</span></div>
           <div><span class="formula">生成到灰度表 = 同一组名/泳道的目的条带扣背景积分、内参条带扣背景积分</span></div>
+          <div class="section-title">条带组图裁剪</div>
+          <div><span class="formula">组图裁剪行 = 从原始图片按 ROI 坐标裁剪该蛋白的一整行条带</span></div>
+          <div><span class="formula">输出 PNG = 左侧蛋白名 + 上方组别标签 + 中央裁剪条带 + 右侧 kDa + 底部样品名</span></div>
           <div><span class="formula">校正目的灰度 = 目的条带灰度 - 目的背景</span></div>
           <div><span class="formula">校正内参灰度 = 内参条带灰度 - 内参背景</span></div>
           <div><span class="formula">归一化灰度 = 校正目的灰度 / 校正内参灰度</span></div>

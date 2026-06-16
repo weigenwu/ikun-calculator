@@ -1128,6 +1128,27 @@
       font-weight: 900;
     }
 
+    .roi-kind-montage {
+      color: #7c3aed;
+      font-weight: 900;
+    }
+
+    .wbg-montage-preview {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .wbg-montage-preview canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      background: #fff;
+    }
+
     .plate-grid {
       min-width: 920px;
       display: grid;
