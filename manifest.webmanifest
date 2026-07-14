@@ -2,7 +2,7 @@
   "id": "./",
   "name": "实验室一体化工作台",
   "short_name": "实验室工作台",
-  "description": "实验计算器、WB 组图与灰度分析、IF/IHC 组图的统一入口；计算器支持本地离线使用。",
+  "description": "实验流程、WB 和 IF/IHC 的一体化实验室工作台；10 个计算模块支持本地离线使用。",
   "lang": "zh-CN",
   "start_url": "./index.html",
   "scope": "./",

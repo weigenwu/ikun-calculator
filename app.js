@@ -11,18 +11,10 @@
       let icLastCsv = "";
       let elisaLastCsv = "";
       let flowLastCsv = "";
-      let wbgLastCsv = "";
       let vaPlateImageUrl = "";
       let vaPlateScanUrl = "";
       let vaTesseractPromise = null;
       let vaTesseractWorker = null;
-      let wbgRoiImage = null;
-      let wbgRoiSource = null;
-      let wbgRoiImageData = null;
-      let wbgRoiItems = [];
-      let wbgRoiDrag = null;
-      let wbgMontageRows = [];
-      let wbgMontageDownloadUrl = "";
       const vaPlateWells = new Map();
       const vaPlateSelectedWells = new Set();
       let qmePrimaryWell = "A1";
@@ -30,7 +22,8 @@
       let musicObjectUrl = "";
       let deferredInstallPrompt = null;
       const themeKey = "w2g-calculator-theme";
-      const APP_VERSION = "v23";
+      const APP_VERSION = "v24";
+      const WB_WORKSPACE_URL = "https://weigenwu.github.io/wb/#studio";
       const draftPrefix = "w2g-calculator-draft:";
       let pendingServiceWorker = null;
       let reloadingForUpdate = false;
@@ -450,6 +443,27 @@
         return draftPrefix + panelName;
       }
 
+      function migrateQpcrDrafts() {
+        const legacyNames = ["mastermix", "qpcrdata", "qmulti"];
+        try {
+          const merged = {};
+          let hasLegacy = false;
+          legacyNames.forEach((name) => {
+            const value = JSON.parse(localStorage.getItem(panelDraftKey(name)) || "null");
+            if (!value || typeof value !== "object" || Array.isArray(value)) return;
+            Object.assign(merged, value);
+            hasLegacy = true;
+          });
+          if (!hasLegacy) return;
+          const current = JSON.parse(localStorage.getItem(panelDraftKey("qpcr")) || "null");
+          if (current && typeof current === "object" && !Array.isArray(current)) Object.assign(merged, current);
+          localStorage.setItem(panelDraftKey("qpcr"), JSON.stringify(merged));
+          legacyNames.forEach((name) => localStorage.removeItem(panelDraftKey(name)));
+        } catch (error) {
+          // Keep the old keys when storage is blocked or a draft is malformed.
+        }
+      }
+
       function readFieldValue(field) {
         if (field.type === "checkbox" || field.type === "radio") return field.checked;
         if (field.tagName === "SELECT" && field.multiple) {
@@ -530,23 +544,6 @@
           box.innerHTML = "";
           box.style.display = "none";
         });
-        if (panel.dataset.panel === "wbdensity") {
-          wbgRoiImage = null;
-          wbgRoiSource = null;
-          wbgRoiImageData = null;
-          wbgRoiItems = [];
-          wbgRoiDrag = null;
-          wbgMontageRows = [];
-          wbgMontageClearDownloadUrl();
-          const canvas = $("wbg-roi-canvas");
-          if (canvas) {
-            canvas.width = 960;
-            canvas.height = 520;
-          }
-          $("wbg-roi-stage")?.classList.remove("has-image");
-          wbgRoiDraw();
-          wbgRoiStatus("已清空 WB 图片和 ROI 框选。", "ok");
-        }
         setPanelDraftStatus(panel, "已清空本模块");
       }
 
@@ -635,7 +632,7 @@
         ],
         elisa: [
           { label: "4PL ELISA", values: { "elisa-fit-mode": "fourpl", "elisa-unit": "pg/mL", "elisa-cv-threshold": "15" } },
-          { label: "线性 BCA", values: { "elisa-fit-mode": "linear", "elisa-unit": "µg/µL", "elisa-cv-threshold": "10" } }
+          { label: "线性标准曲线", values: { "elisa-fit-mode": "linear", "elisa-unit": "pg/mL", "elisa-cv-threshold": "10" } }
         ],
         qpcr: [
           { label: "20µL SYBR", values: { "rt-target-rna": "1000", "rt-total-vol": "20", "rt-gdna-vol": "4", "rt-mix-vol": "5", "rt-other-vol": "0", "qpcr-total-vol": "20", "qpcr-replicates": "4", "qpcr-extra": "1", "qpcr-mix-vol": "10", "qpcr-forward-vol": "0.4", "qpcr-reverse-vol": "0.4", "qpcr-cdna-vol": "2", "qpcr-other-vol": "0" } },
@@ -655,21 +652,22 @@
           { label: "100µL RIPA", values: { "bca-ripa-volume": "100", "wb-boil-lysate-volume": "80", "bca-assay-volume": "10", "wb-final-lane-vol": "20", "wb-loading-x": "5", "wb-target-protein": "" } },
           { label: "60µL 少量样本", values: { "bca-ripa-volume": "60", "wb-boil-lysate-volume": "45", "bca-assay-volume": "8", "wb-final-lane-vol": "15", "wb-loading-x": "5", "wb-target-protein": "" } }
         ],
-        wbdensity: [
-          { label: "目的/ACTB", values: { "wbg-target-name": "Target", "wbg-ref-name": "ACTB", "wbg-control-group": "Control", "wbg-bg-target": "0", "wbg-bg-ref": "0", "wbg-test-mode": "welch" } },
-          { label: "目的/GAPDH", values: { "wbg-target-name": "Target", "wbg-ref-name": "GAPDH", "wbg-control-group": "Control", "wbg-bg-target": "0", "wbg-bg-ref": "0", "wbg-test-mode": "welch" } }
-        ],
         virus: [
           { label: "6孔 5µg", values: { "lv-total-dna": "5", "lv-transfer-ratio": "5", "lv-pax2-ratio": "3", "lv-md2g-ratio": "2", "lv-transfer-conc": "1000", "lv-pax2-conc": "1000", "lv-md2g-conc": "1000", "lv-pei-per-ug": "3", "lv-opti-ref-dna": "5", "lv-opti-ref-vol": "400" } },
           { label: "10cm 10µg", values: { "lv-total-dna": "10", "lv-transfer-ratio": "5", "lv-pax2-ratio": "3", "lv-md2g-ratio": "2", "lv-transfer-conc": "1000", "lv-pax2-conc": "1000", "lv-md2g-conc": "1000", "lv-pei-per-ug": "3", "lv-opti-ref-dna": "5", "lv-opti-ref-vol": "400" } }
         ]
       };
 
+      function moduleSection(panelName) {
+        if (panelName === "qpcr") return $("qpcr-mode-rt");
+        return $("panel-" + panelName) || $("qpcr-mode-" + panelName);
+      }
+
       function setupPresetRows() {
         Object.entries(PANEL_PRESETS).forEach(([panelName, presets]) => {
-          const panel = $("panel-" + panelName);
-          const head = panel?.querySelector(".module-head");
-          if (!panel || !head || !presets.length) return;
+          const section = moduleSection(panelName);
+          const head = section?.querySelector(".module-head, .qpcr-step-head");
+          if (!section || !head || !presets.length) return;
           const row = document.createElement("div");
           row.className = "preset-row";
           row.innerHTML = `<span class="preset-label">常用预设</span>${presets.map((preset, index) => `<button class="action tiny ghost" type="button" data-preset-panel="${escapeHtml(panelName)}" data-preset-index="${index}">${escapeHtml(preset.label)}</button>`).join("")}`;
@@ -678,9 +676,10 @@
       }
 
       function applyPreset(panelName, index) {
-        const panel = $("panel-" + panelName);
+        const section = moduleSection(panelName);
+        const panel = section?.closest(".tool-panel");
         const preset = PANEL_PRESETS[panelName]?.[index];
-        if (!panel || !preset) return;
+        if (!section || !panel || !preset) return;
         Object.entries(preset.values).forEach(([id, value]) => {
           const field = $(id);
           if (!field) return;
@@ -712,15 +711,14 @@
         qpcrdata: ["ΔΔCt 以所选内参和对照样本为基准。", "技术重复统计只能说明孔级差异，不能替代生物学重复统计。"],
         qmulti: ["多基因分析会按内参基因归一化并尝试自动配对样本。", "导入后请先检查孔板布局和忽略孔。"],
         bca: ["BCA 浓度视为 RIPA 裂解液原液浓度。", "加入高倍 Loading buffer 后按体积稀释，不考虑煮样蒸发损失。"],
-        wbdensity: ["图片 ROI 默认按暗带积分灰度 sum(255 - gray) 读取。", "背景扣除后再做目的/内参归一化。", "同一膜内比较更可靠，跨膜比较建议加入桥接样本。"],
         virus: ["质粒和 PEI 只做体积换算。", "包装条件仍需按细胞系、培养皿和实验室 SOP 调整。"]
       };
 
       function setupAssumptionNotes() {
         Object.entries(MODULE_ASSUMPTIONS).forEach(([panelName, lines]) => {
-          const panel = $("panel-" + panelName);
-          const head = panel?.querySelector(".module-head");
-          if (!panel || !head || !lines.length) return;
+          const section = moduleSection(panelName);
+          const head = section?.querySelector(".module-head, .qpcr-step-head");
+          if (!section || !head || !lines.length) return;
           const details = document.createElement("details");
           details.className = "formula-box module-assumptions";
           details.innerHTML = `
@@ -3068,7 +3066,7 @@
         }
         activateTab("bca", true);
         calculateBcaAll();
-        setResult("va-plate-status", `<strong>已生成到 BCA/WB。</strong>${isFinite(fit.r2) ? ` 标准曲线 R²=${fmt(fit.r2, 4)}。` : " 未标记足够标准品，沿用当前标准曲线。"}`, isFinite(fit.r2) && fit.r2 < 0.98 ? "warn" : "ok");
+        setResult("va-plate-status", `<strong>已生成到“蛋白定量与上样”。</strong>${isFinite(fit.r2) ? ` 标准曲线 R²=${fmt(fit.r2, 4)}。` : " 未标记足够标准品，沿用当前标准曲线。"}`, isFinite(fit.r2) && fit.r2 < 0.98 ? "warn" : "ok");
         return true;
       }
 
@@ -5183,865 +5181,6 @@
         calculateBcaAll();
       }
 
-      function wbgRoiStatus(message, tone = "ok") {
-        const box = $("wbg-roi-status");
-        if (!box) return;
-        box.className = "notice " + tone;
-        box.innerHTML = message;
-      }
-
-      function wbgRoiKindLabel(kind) {
-        return {
-          target: "目的条带",
-          ref: "内参条带",
-          "target-bg": "目的背景",
-          "ref-bg": "内参背景",
-          montage: "组图裁剪行"
-        }[kind] || kind;
-      }
-
-      function wbgRoiShortLabel(kind) {
-        return {
-          target: "T",
-          ref: "R",
-          "target-bg": "T-bg",
-          "ref-bg": "R-bg",
-          montage: "组图"
-        }[kind] || kind;
-      }
-
-      function wbgRoiColor(kind) {
-        if (kind === "target") return "#08766d";
-        if (kind === "ref") return "#d97706";
-        if (kind === "montage") return "#7c3aed";
-        return "#6b7280";
-      }
-
-      function wbgRoiSignalClass(kind) {
-        if (kind === "target") return "roi-kind-target";
-        if (kind === "ref") return "roi-kind-ref";
-        if (kind === "montage") return "roi-kind-montage";
-        return "roi-kind-bg";
-      }
-
-      function wbgRoiCanvasPoint(event) {
-        const canvas = $("wbg-roi-canvas");
-        const rect = canvas.getBoundingClientRect();
-        return {
-          x: Math.max(0, Math.min(canvas.width, (event.clientX - rect.left) * canvas.width / rect.width)),
-          y: Math.max(0, Math.min(canvas.height, (event.clientY - rect.top) * canvas.height / rect.height))
-        };
-      }
-
-      function wbgRoiNormalizeRect(a, b) {
-        const x = Math.round(Math.min(a.x, b.x));
-        const y = Math.round(Math.min(a.y, b.y));
-        const w = Math.round(Math.abs(a.x - b.x));
-        const h = Math.round(Math.abs(a.y - b.y));
-        return { x, y, w, h };
-      }
-
-      function wbgRoiSignal(gray, mode) {
-        return mode === "raw" ? gray : 255 - gray;
-      }
-
-      function wbgRoiStats(rect, mode) {
-        if (!wbgRoiImageData || rect.w <= 0 || rect.h <= 0) return null;
-        const data = wbgRoiImageData.data;
-        const imgW = wbgRoiImageData.width;
-        const x0 = Math.max(0, Math.min(wbgRoiImageData.width - 1, rect.x));
-        const y0 = Math.max(0, Math.min(wbgRoiImageData.height - 1, rect.y));
-        const x1 = Math.max(x0 + 1, Math.min(wbgRoiImageData.width, rect.x + rect.w));
-        const y1 = Math.max(y0 + 1, Math.min(wbgRoiImageData.height, rect.y + rect.h));
-        let graySum = 0;
-        let signalSum = 0;
-        let area = 0;
-        for (let y = y0; y < y1; y += 1) {
-          for (let x = x0; x < x1; x += 1) {
-            const offset = (y * imgW + x) * 4;
-            const gray = data[offset] * 0.2126 + data[offset + 1] * 0.7152 + data[offset + 2] * 0.0722;
-            graySum += gray;
-            signalSum += wbgRoiSignal(gray, mode);
-            area += 1;
-          }
-        }
-        return {
-          area,
-          meanGray: area ? graySum / area : NaN,
-          meanSignal: area ? signalSum / area : NaN,
-          integrated: signalSum
-        };
-      }
-
-      function wbgRoiBackgroundFor(item) {
-        const bgKind = item.kind === "target" ? "target-bg" : item.kind === "ref" ? "ref-bg" : "";
-        if (!bgKind) return null;
-        const matches = wbgRoiItems.filter((roi) => roi.kind === bgKind && roi.group === item.group && roi.lane === item.lane && roi.mode === item.mode && roi.stats);
-        if (!matches.length) return null;
-        const area = matches.reduce((sum, roi) => sum + roi.stats.area, 0);
-        const signal = matches.reduce((sum, roi) => sum + roi.stats.meanSignal * roi.stats.area, 0);
-        return area > 0 ? { meanSignal: signal / area, count: matches.length } : null;
-      }
-
-      function wbgRoiCorrectedSignal(item) {
-        if (!item.stats) return NaN;
-        if (item.kind !== "target" && item.kind !== "ref") return NaN;
-        const bg = wbgRoiBackgroundFor(item);
-        return item.stats.integrated - (bg ? bg.meanSignal * item.stats.area : 0);
-      }
-
-      function wbgRoiDraw() {
-        const canvas = $("wbg-roi-canvas");
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (wbgRoiSource) {
-          ctx.drawImage(wbgRoiSource, 0, 0, canvas.width, canvas.height);
-        } else {
-          ctx.fillStyle = "rgba(255,255,255,0.65)";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-        const drawableItems = [
-          ...wbgRoiItems.map((item) => ({ ...item, drawLabel: `${wbgRoiShortLabel(item.kind)} ${item.group}/${item.lane}` })),
-          ...wbgMontageRows.map((row) => ({ kind: "montage", rect: row.rect, drawLabel: `${row.protein} ${row.kd}` }))
-        ];
-        drawableItems.forEach((item, index) => {
-          const color = wbgRoiColor(item.kind);
-          ctx.save();
-          ctx.strokeStyle = color;
-          ctx.lineWidth = Math.max(2, canvas.width / 600);
-          ctx.setLineDash(item.kind.includes("bg") ? [8, 5] : []);
-          ctx.strokeRect(item.rect.x + 0.5, item.rect.y + 0.5, item.rect.w, item.rect.h);
-          ctx.fillStyle = color;
-          ctx.globalAlpha = 0.16;
-          ctx.fillRect(item.rect.x, item.rect.y, item.rect.w, item.rect.h);
-          ctx.globalAlpha = 0.92;
-          const label = `${index + 1} ${item.drawLabel || wbgRoiShortLabel(item.kind)}`;
-          ctx.font = `${Math.max(12, Math.round(canvas.width / 70))}px Arial`;
-          const labelW = ctx.measureText(label).width + 8;
-          const labelY = Math.max(18, item.rect.y - 4);
-          ctx.fillRect(item.rect.x, labelY - 16, labelW, 18);
-          ctx.fillStyle = "#fff";
-          ctx.fillText(label, item.rect.x + 4, labelY - 3);
-          ctx.restore();
-        });
-        if (wbgRoiDrag) {
-          const rect = wbgRoiNormalizeRect(wbgRoiDrag.start, wbgRoiDrag.current);
-          ctx.save();
-          ctx.strokeStyle = wbgRoiColor(wbgRoiDrag.kind);
-          ctx.lineWidth = 2;
-          ctx.setLineDash([6, 4]);
-          ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
-          ctx.restore();
-        }
-      }
-
-      function wbgRoiRenderResult() {
-        if (!wbgRoiItems.length) {
-          const box = $("wbg-roi-result");
-          if (box) {
-            box.className = "result";
-            box.innerHTML = "";
-            box.style.display = "none";
-          }
-          wbgRoiStatus("已经清空框选。上传图片后拖框选择条带。", "ok");
-          return;
-        }
-        const rows = wbgRoiItems.map((item, index) => {
-          const bg = wbgRoiBackgroundFor(item);
-          const corrected = wbgRoiCorrectedSignal(item);
-          return [
-            fmtInt(index + 1),
-            escapeHtml(item.group),
-            escapeHtml(item.lane),
-            `<span class="${wbgRoiSignalClass(item.kind)}">${escapeHtml(wbgRoiKindLabel(item.kind))}</span>`,
-            `${fmtInt(item.rect.x)}, ${fmtInt(item.rect.y)}, ${fmtInt(item.rect.w)}×${fmtInt(item.rect.h)}`,
-            fmtInt(item.stats.area),
-            fmt(item.stats.meanGray, 2),
-            fmt(item.stats.integrated, 1),
-            isFinite(corrected) ? fmt(corrected, 1) : "—",
-            bg ? `已扣 ${bg.count} 个背景框` : (item.kind === "target" || item.kind === "ref" ? "未扣背景" : "背景框")
-          ];
-        });
-        const bandCount = wbgRoiItems.filter((item) => item.kind === "target" || item.kind === "ref").length;
-        setResult("wbg-roi-result", `
-          <p class="result-title">WB 图片灰度读取结果</p>
-          <div class="metric-grid">
-            <div class="metric"><strong>${fmtInt(wbgRoiItems.length)}</strong><span>ROI 框总数</span></div>
-            <div class="metric"><strong>${fmtInt(bandCount)}</strong><span>条带框数</span></div>
-            <div class="metric"><strong>${$("wbg-roi-mode").value === "dark" ? "暗带积分" : "原始灰度"}</strong><span>当前算法</span></div>
-          </div>
-          ${table(["#", "组名", "泳道", "类型", "x,y,w×h", "面积", "平均灰度", "积分灰度", "扣背景积分", "背景状态"], rows)}
-          <div class="notice ok"><strong>说明：</strong>暗带信号按 sum(255 - gray) 计算；扣背景积分 = 条带积分 - 背景平均信号 × 条带面积。</div>
-        `, "ok");
-        wbgRoiStatus(`已读取 ${fmtInt(wbgRoiItems.length)} 个 ROI。可继续框选，或点击“生成到灰度表”。`, "ok");
-      }
-
-      function wbgMontageClearDownloadUrl() {
-        if (wbgMontageDownloadUrl) URL.revokeObjectURL(wbgMontageDownloadUrl);
-        wbgMontageDownloadUrl = "";
-        const button = $("wbg-montage-download");
-        if (button) button.disabled = true;
-      }
-
-      function wbgMontageRowsTable() {
-        return table(["#", "蛋白", "kDa", "裁剪区域 x,y,w×h"], wbgMontageRows.map((row, index) => [
-          fmtInt(index + 1),
-          escapeHtml(row.protein),
-          escapeHtml(row.kd),
-          `${fmtInt(row.rect.x)}, ${fmtInt(row.rect.y)}, ${fmtInt(row.rect.w)}×${fmtInt(row.rect.h)}`
-        ]));
-      }
-
-      function wbgMontageRenderList(message = "") {
-        const box = $("wbg-montage-result");
-        if (!box) return;
-        if (!wbgMontageRows.length) {
-          box.className = "result";
-          box.innerHTML = "";
-          box.style.display = "none";
-          return;
-        }
-        setResult("wbg-montage-result", `
-          <p class="result-title">WB 条带组图草稿</p>
-          <div class="metric-grid">
-            <div class="metric"><strong>${fmtInt(wbgMontageRows.length)}</strong><span>已加入条带行</span></div>
-            <div class="metric"><strong>${escapeHtml($("wbg-montage-groups").value || "未填写")}</strong><span>组别标签</span></div>
-            <div class="metric"><strong>${escapeHtml($("wbg-montage-sample").value || "未填写")}</strong><span>样品名称</span></div>
-          </div>
-          ${message ? `<div class="notice ok">${message}</div>` : ""}
-          ${wbgMontageRowsTable()}
-        `, "ok");
-      }
-
-      function wbgMontageAddRect(rect) {
-        if (!wbgRoiSource) {
-          wbgRoiStatus("请先上传 WB 图片。", "warn");
-          return;
-        }
-        if (rect.w < 5 || rect.h < 5) {
-          wbgRoiStatus("组图裁剪区域太小，请框住一整行条带。", "warn");
-          return;
-        }
-        const protein = $("wbg-montage-protein").value.trim() || `Protein_${wbgMontageRows.length + 1}`;
-        const kd = $("wbg-montage-kd").value.trim() || "";
-        wbgMontageRows.push({ protein, kd, rect });
-        wbgMontageClearDownloadUrl();
-        wbgRoiDraw();
-        wbgMontageRenderList(`已加入组图行：${escapeHtml(protein)}${kd ? ` / ${escapeHtml(kd)}` : ""}。`);
-        wbgRoiStatus("已加入组图裁剪行。可继续修改蛋白名/kDa 后框下一行，或点击“生成条带组图”。", "ok");
-      }
-
-      function wbgRoiAddRect(rect) {
-        if (!wbgRoiImageData) {
-          wbgRoiStatus("请先上传 WB 图片。", "warn");
-          return;
-        }
-        if (rect.w < 3 || rect.h < 3) {
-          wbgRoiStatus("框选区域太小，请重新拖拽一个覆盖条带的矩形。", "warn");
-          return;
-        }
-        if ($("wbg-roi-kind").value === "montage") {
-          wbgMontageAddRect(rect);
-          return;
-        }
-        const mode = $("wbg-roi-mode").value || "dark";
-        const stats = wbgRoiStats(rect, mode);
-        if (!stats || !stats.area) {
-          wbgRoiStatus("无法读取这个区域的像素，请重新框选。", "danger");
-          return;
-        }
-        const item = {
-          group: $("wbg-roi-group").value.trim() || "Group_1",
-          lane: $("wbg-roi-lane").value.trim() || String(wbgRoiItems.length + 1),
-          kind: $("wbg-roi-kind").value,
-          mode,
-          rect,
-          stats
-        };
-        wbgRoiItems.push(item);
-        wbgRoiDraw();
-        wbgRoiRenderResult();
-      }
-
-      function wbgTiffTypeSize(type) {
-        return { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8 }[type] || 0;
-      }
-
-      function wbgTiffReadValues(view, little, entryOffset) {
-        const type = view.getUint16(entryOffset + 2, little);
-        const count = view.getUint32(entryOffset + 4, little);
-        const size = wbgTiffTypeSize(type);
-        const valueBytes = size * count;
-        const valueOffset = valueBytes <= 4 ? entryOffset + 8 : view.getUint32(entryOffset + 8, little);
-        const values = [];
-        for (let i = 0; i < count; i += 1) {
-          const offset = valueOffset + i * size;
-          if (type === 1 || type === 2) values.push(view.getUint8(offset));
-          else if (type === 3) values.push(view.getUint16(offset, little));
-          else if (type === 4) values.push(view.getUint32(offset, little));
-          else if (type === 5) {
-            const num = view.getUint32(offset, little);
-            const den = view.getUint32(offset + 4, little);
-            values.push(den ? num / den : NaN);
-          }
-        }
-        return count === 1 ? values[0] : values;
-      }
-
-      function wbgDecodeTiff(arrayBuffer) {
-        const view = new DataView(arrayBuffer);
-        const byteOrder = String.fromCharCode(view.getUint8(0), view.getUint8(1));
-        const little = byteOrder === "II";
-        if (!little && byteOrder !== "MM") throw new Error("不是标准 TIFF 字节序。");
-        if (view.getUint16(2, little) !== 42) throw new Error("不是可识别的 TIFF 文件。");
-        const ifdOffset = view.getUint32(4, little);
-        const tagCount = view.getUint16(ifdOffset, little);
-        const tags = new Map();
-        for (let i = 0; i < tagCount; i += 1) {
-          const entryOffset = ifdOffset + 2 + i * 12;
-          tags.set(view.getUint16(entryOffset, little), wbgTiffReadValues(view, little, entryOffset));
-        }
-        const width = tags.get(256);
-        const height = tags.get(257);
-        const bits = Array.isArray(tags.get(258)) ? tags.get(258) : [tags.get(258) || 8];
-        const compression = tags.get(259) || 1;
-        const photometric = tags.get(262);
-        const stripOffsets = Array.isArray(tags.get(273)) ? tags.get(273) : [tags.get(273)];
-        const stripByteCounts = Array.isArray(tags.get(279)) ? tags.get(279) : [tags.get(279)];
-        const samplesPerPixel = tags.get(277) || 1;
-        if (!width || !height) throw new Error("TIFF 缺少宽高信息。");
-        if (compression !== 1) throw new Error("当前网页只支持未压缩 TIFF；请导出 PNG/JPG 或未压缩 8-bit TIFF。");
-        if (!bits.every((bit) => bit === 8)) throw new Error("当前网页只支持 8-bit TIFF；请先导出为 8-bit 灰度或 PNG。");
-        if (![1, 3, 4].includes(samplesPerPixel)) throw new Error("当前网页只支持灰度、RGB 或 RGBA TIFF。");
-        const rgba = new Uint8ClampedArray(width * height * 4);
-        let pixelIndex = 0;
-        stripOffsets.forEach((stripOffset, stripIndex) => {
-          const byteCount = stripByteCounts[stripIndex] || 0;
-          for (let offset = stripOffset; offset < stripOffset + byteCount && pixelIndex < width * height; offset += samplesPerPixel) {
-            let r;
-            let g;
-            let b;
-            if (samplesPerPixel === 1) {
-              const sample = view.getUint8(offset);
-              const gray = photometric === 0 ? 255 - sample : sample;
-              r = gray;
-              g = gray;
-              b = gray;
-            } else {
-              r = view.getUint8(offset);
-              g = view.getUint8(offset + 1);
-              b = view.getUint8(offset + 2);
-            }
-            const out = pixelIndex * 4;
-            rgba[out] = r;
-            rgba[out + 1] = g;
-            rgba[out + 2] = b;
-            rgba[out + 3] = 255;
-            pixelIndex += 1;
-          }
-        });
-        if (pixelIndex < width * height) throw new Error("TIFF 像素数据不完整。");
-        return new ImageData(rgba, width, height);
-      }
-
-      function wbgUseImageData(imageData, fileName) {
-        const canvas = $("wbg-roi-canvas");
-        canvas.width = imageData.width;
-        canvas.height = imageData.height;
-        const source = document.createElement("canvas");
-        source.width = imageData.width;
-        source.height = imageData.height;
-        source.getContext("2d").putImageData(imageData, 0, 0);
-        wbgRoiImage = null;
-        wbgRoiSource = source;
-        wbgRoiImageData = imageData;
-        $("wbg-roi-stage").classList.add("has-image");
-        wbgRoiItems = [];
-        wbgMontageRows = [];
-        wbgMontageClearDownloadUrl();
-        wbgRoiDrag = null;
-        wbgRoiDraw();
-        wbgRoiRenderResult();
-        wbgRoiStatus(`已载入 ${escapeHtml(fileName)}，尺寸 ${fmtInt(canvas.width)} × ${fmtInt(canvas.height)} px。现在可以拖框选条带。`, "ok");
-      }
-
-      async function wbgRoiLoadImage() {
-        const file = $("wbg-image-file").files && $("wbg-image-file").files[0];
-        if (!file) return;
-        try {
-          if (/\.tiff?$/i.test(file.name)) {
-            const imageData = wbgDecodeTiff(await file.arrayBuffer());
-            wbgUseImageData(imageData, file.name);
-            return;
-          }
-          const url = URL.createObjectURL(file);
-          const image = new Image();
-          image.onload = () => {
-            URL.revokeObjectURL(url);
-            wbgRoiImage = image;
-            wbgRoiSource = image;
-            const canvas = $("wbg-roi-canvas");
-            canvas.width = image.naturalWidth || image.width;
-            canvas.height = image.naturalHeight || image.height;
-            $("wbg-roi-stage").classList.add("has-image");
-            wbgRoiItems = [];
-            wbgMontageRows = [];
-            wbgMontageClearDownloadUrl();
-            wbgRoiDrag = null;
-            wbgRoiDraw();
-            wbgRoiImageData = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height);
-            wbgRoiRenderResult();
-            wbgRoiStatus(`已载入 ${escapeHtml(file.name)}，尺寸 ${fmtInt(canvas.width)} × ${fmtInt(canvas.height)} px。现在可以拖框选条带。`, "ok");
-          };
-          image.onerror = () => {
-            URL.revokeObjectURL(url);
-            wbgRoiStatus("图片读取失败，请换一张 PNG/JPG/JPEG，或未压缩 8-bit TIFF。", "danger");
-          };
-          image.src = url;
-        } catch (error) {
-          wbgRoiStatus(`图片读取失败：${escapeHtml(error.message)}`, "danger");
-        }
-      }
-
-      function wbgRoiPointerDown(event) {
-        if (!wbgRoiImageData) {
-          wbgRoiStatus("请先上传 WB 图片。", "warn");
-          return;
-        }
-        event.preventDefault();
-        const start = wbgRoiCanvasPoint(event);
-        wbgRoiDrag = {
-          start,
-          current: start,
-          kind: $("wbg-roi-kind").value
-        };
-        $("wbg-roi-canvas").setPointerCapture?.(event.pointerId);
-        wbgRoiDraw();
-      }
-
-      function wbgRoiPointerMove(event) {
-        if (!wbgRoiDrag) return;
-        event.preventDefault();
-        wbgRoiDrag.current = wbgRoiCanvasPoint(event);
-        wbgRoiDraw();
-      }
-
-      function wbgRoiPointerUp(event) {
-        if (!wbgRoiDrag) return;
-        event.preventDefault();
-        wbgRoiDrag.current = wbgRoiCanvasPoint(event);
-        const rect = wbgRoiNormalizeRect(wbgRoiDrag.start, wbgRoiDrag.current);
-        wbgRoiDrag = null;
-        wbgRoiAddRect(rect);
-      }
-
-      function wbgRoiUndo() {
-        wbgRoiItems.pop();
-        wbgRoiDraw();
-        wbgRoiRenderResult();
-      }
-
-      function wbgRoiClear() {
-        wbgRoiItems = [];
-        wbgRoiDrag = null;
-        wbgRoiDraw();
-        wbgRoiRenderResult();
-      }
-
-      function wbgRoiGeneratedRows() {
-        const map = new Map();
-        wbgRoiItems.forEach((item) => {
-          if (item.kind !== "target" && item.kind !== "ref") return;
-          const key = `${item.group}\u0001${item.lane}`;
-          if (!map.has(key)) map.set(key, { group: item.group, lane: item.lane, target: 0, ref: 0, targetN: 0, refN: 0 });
-          const entry = map.get(key);
-          const corrected = wbgRoiCorrectedSignal(item);
-          if (!isFinite(corrected)) return;
-          if (item.kind === "target") {
-            entry.target += corrected;
-            entry.targetN += 1;
-          } else {
-            entry.ref += corrected;
-            entry.refN += 1;
-          }
-        });
-        return Array.from(map.values()).filter((entry) => entry.targetN > 0 && entry.refN > 0 && entry.target > 0 && entry.ref > 0);
-      }
-
-      function wbgRoiToTable() {
-        const rows = wbgRoiGeneratedRows();
-        if (!rows.length) {
-          wbgRoiStatus("还没有成对的目的条带和内参条带。请至少为同一组名/泳道各框选一个目的条带和一个内参条带。", "warn");
-          return false;
-        }
-        $("wbg-data").value = rows.map((row) => `${row.group}, ${row.lane}, ${fmtData(row.target, 3)}, ${fmtData(row.ref, 3)}`).join("\n");
-        $("wbg-bg-target").value = "0";
-        $("wbg-bg-ref").value = "0";
-        wbgRoiStatus(`已生成 ${fmtInt(rows.length)} 行到灰度表，并自动运行 WB 灰度分析。`, "ok");
-        calculateWbGray();
-        return true;
-      }
-
-      function wbgMontageLabels() {
-        return splitLines(($("wbg-montage-groups").value || "").replace(/[，,;；]+/g, "\n")).map((label) => label.trim()).filter(Boolean);
-      }
-
-      function wbgMontageRender() {
-        if (!wbgRoiSource || !wbgMontageRows.length) {
-          wbgRoiStatus("请先上传 WB 图片，并至少添加一行“组图裁剪行”。", "warn");
-          return false;
-        }
-        const groups = wbgMontageLabels();
-        const sample = $("wbg-montage-sample").value.trim();
-        const angle = (parseFloat($("wbg-montage-angle").value) || 0) * Math.PI / 180;
-        const maxCropW = Math.max(...wbgMontageRows.map((row) => row.rect.w));
-        const maxCropH = Math.max(...wbgMontageRows.map((row) => row.rect.h));
-        const cropScale = Math.max(0.35, Math.min(2, 300 / Math.max(maxCropW, 1)));
-        const cropW = Math.round(maxCropW * cropScale);
-        const rowGap = Math.max(8, Math.round(maxCropH * cropScale * 0.22));
-        const topPad = groups.length ? 88 : 30;
-        const leftW = 128;
-        const rightW = 96;
-        const margin = 20;
-        const bottomPad = sample ? 72 : 30;
-        const rowHeights = wbgMontageRows.map((row) => Math.max(22, Math.round(row.rect.h * cropScale)));
-        const cropH = rowHeights.reduce((sum, h) => sum + h, 0) + rowGap * Math.max(0, rowHeights.length - 1);
-        const outW = margin + leftW + cropW + rightW + margin;
-        const outH = topPad + cropH + bottomPad;
-        const canvas = document.createElement("canvas");
-        canvas.width = outW;
-        canvas.height = outH;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, outW, outH);
-        const cropX = margin + leftW;
-        if (groups.length) {
-          ctx.save();
-          ctx.fillStyle = "#000";
-          ctx.font = "700 17px Arial, sans-serif";
-          ctx.textAlign = angle === 0 ? "center" : "left";
-          ctx.textBaseline = "bottom";
-          const laneW = cropW / groups.length;
-          groups.forEach((group, index) => {
-            const x = cropX + laneW * (index + 0.5);
-            const y = topPad - 8;
-            ctx.save();
-            ctx.translate(x, y);
-            if (angle) ctx.rotate(angle);
-            ctx.fillText(group, 0, 0);
-            ctx.restore();
-          });
-          ctx.restore();
-        }
-        let y = topPad;
-        wbgMontageRows.forEach((row, index) => {
-          const h = rowHeights[index];
-          const w = Math.round(row.rect.w * cropScale);
-          const drawX = cropX + Math.round((cropW - w) / 2);
-          ctx.drawImage(wbgRoiSource, row.rect.x, row.rect.y, row.rect.w, row.rect.h, drawX, y, w, h);
-          ctx.strokeStyle = "#111";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(drawX + 0.5, y + 0.5, w, h);
-          ctx.fillStyle = "#000";
-          ctx.font = "700 17px Arial, sans-serif";
-          ctx.textAlign = "right";
-          ctx.textBaseline = "middle";
-          ctx.fillText(row.protein, margin + leftW - 12, y + h / 2);
-          ctx.textAlign = "left";
-          ctx.fillText(row.kd, cropX + cropW + 18, y + h / 2);
-          y += h + rowGap;
-        });
-        if (sample) {
-          const lineY = topPad + cropH + 16;
-          ctx.strokeStyle = "#000";
-          ctx.lineWidth = 5;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(cropX, lineY);
-          ctx.lineTo(cropX + cropW, lineY);
-          ctx.stroke();
-          ctx.fillStyle = "#000";
-          ctx.font = "700 18px Arial, sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-          ctx.fillText(sample, cropX + cropW / 2, lineY + 14);
-        }
-        wbgMontageClearDownloadUrl();
-        canvas.toBlob((blob) => {
-          if (!blob) return;
-          wbgMontageDownloadUrl = URL.createObjectURL(blob);
-          $("wbg-montage-download").disabled = false;
-        }, "image/png");
-        setResult("wbg-montage-result", `
-          <p class="result-title">WB 条带组图</p>
-          <div class="metric-grid">
-            <div class="metric"><strong>${fmtInt(wbgMontageRows.length)}</strong><span>条带行</span></div>
-            <div class="metric"><strong>${escapeHtml(groups.join(", ") || "未填写")}</strong><span>组别标签</span></div>
-            <div class="metric"><strong>${escapeHtml(sample || "未填写")}</strong><span>样品名称</span></div>
-            <div class="metric"><strong>${fmtInt(outW)} × ${fmtInt(outH)} px</strong><span>输出尺寸</span></div>
-          </div>
-          <div class="wbg-montage-preview">${canvas.outerHTML}</div>
-          ${wbgMontageRowsTable()}
-        `, "ok");
-        const preview = $("wbg-montage-result").querySelector(".wbg-montage-preview");
-        const previewCanvas = preview.querySelector("canvas");
-        previewCanvas.getContext("2d").drawImage(canvas, 0, 0);
-        wbgRoiStatus("条带组图已生成。可以点击“下载 PNG”。", "ok");
-        return true;
-      }
-
-      function wbgMontageUndo() {
-        wbgMontageRows.pop();
-        wbgMontageClearDownloadUrl();
-        wbgRoiDraw();
-        wbgMontageRenderList("已删除最后一行。");
-      }
-
-      function wbgMontageClear() {
-        wbgMontageRows = [];
-        wbgMontageClearDownloadUrl();
-        wbgRoiDraw();
-        const box = $("wbg-montage-result");
-        if (box) {
-          box.className = "result";
-          box.innerHTML = "";
-          box.style.display = "none";
-        }
-        wbgRoiStatus("已清空条带组图行。", "ok");
-      }
-
-      function wbgMontageDownload() {
-        if (!wbgMontageDownloadUrl) {
-          wbgMontageRender();
-          if (!wbgMontageDownloadUrl) return;
-        }
-        const link = document.createElement("a");
-        link.href = wbgMontageDownloadUrl;
-        link.download = "wb_band_montage.png";
-        link.click();
-      }
-
-      function parseWbGrayRows(text) {
-        return splitLines(text).map((line, index) => {
-          const parts = line.split(/[,，\t]+/).map((part) => part.trim()).filter(Boolean);
-          if (parts.length < 4) return null;
-          return {
-            group: parts[0],
-            lane: parts[1] || String(index + 1),
-            target: parseFloat(parts[2]),
-            ref: parseFloat(parts[3]),
-            raw: line
-          };
-        }).filter((row) => row && row.group && isFinite(row.target) && isFinite(row.ref));
-      }
-
-      function wbgGroupRows(rows) {
-        const map = new Map();
-        rows.forEach((row) => {
-          if (!map.has(row.group)) map.set(row.group, []);
-          map.get(row.group).push(row);
-        });
-        return Array.from(map.entries()).map(([group, entries]) => ({ group, entries }));
-      }
-
-      function wbgBuildCsv(groups) {
-        const maxN = Math.max(...groups.map((group) => group.relativeValues.length), 1);
-        const rows = [
-          ["Prism column data"],
-          groups.map((group) => group.group),
-          ...Array.from({ length: maxN }, (_, index) => groups.map((group) => isFinite(group.relativeValues[index]) ? group.relativeValues[index] : "")),
-          [],
-          ["Summary"],
-          ["Group", "n", "Normalized mean", "Relative mean", "SD", "SEM", "P value", "Stars"]
-        ];
-        groups.forEach((group) => rows.push([
-          group.group,
-          group.relativeValues.length,
-          fmt(group.normalizedMean, 6),
-          fmt(group.relativeMean, 6),
-          fmt(group.relativeSd, 6),
-          fmt(group.relativeSem, 6),
-          isFinite(group.pValue) ? group.pValue : "",
-          group.pStars
-        ]));
-        return rowsToCsv(rows);
-      }
-
-      function drawWbGrayChart(groups, targetName, refName) {
-        const box = $("wbg-chart-box");
-        const canvas = $("wbg-chart");
-        const ctx = canvas.getContext("2d");
-        box.style.display = "block";
-        box.className = "result ok";
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const pad = { l: 72, r: 28, t: 42, b: 86 };
-        const w = canvas.width - pad.l - pad.r;
-        const h = canvas.height - pad.t - pad.b;
-        const maxY = Math.max(1.2, ...groups.map((group) => group.relativeMean + group.relativeSem)) * 1.25;
-        ctx.strokeStyle = "#cfd8d6";
-        ctx.lineWidth = 1;
-        ctx.fillStyle = "#607177";
-        ctx.font = "14px Arial";
-        ctx.textAlign = "left";
-        for (let i = 0; i <= 5; i += 1) {
-          const yVal = maxY * i / 5;
-          const y = pad.t + h - yVal / maxY * h;
-          ctx.beginPath();
-          ctx.moveTo(pad.l, y);
-          ctx.lineTo(pad.l + w, y);
-          ctx.stroke();
-          ctx.fillText(fmt(yVal, 2), 18, y + 4);
-        }
-        ctx.strokeStyle = "#172326";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(pad.l, pad.t);
-        ctx.lineTo(pad.l, pad.t + h);
-        ctx.lineTo(pad.l + w, pad.t + h);
-        ctx.stroke();
-        const gap = w / Math.max(groups.length, 1);
-        const barW = Math.min(74, gap * 0.5);
-        groups.forEach((group, index) => {
-          const x = pad.l + gap * index + gap / 2;
-          const barH = group.relativeMean / maxY * h;
-          const y = pad.t + h - barH;
-          ctx.fillStyle = index === 0 ? "#08766d" : "#d99022";
-          ctx.fillRect(x - barW / 2, y, barW, barH);
-          const err = group.relativeSem / maxY * h;
-          ctx.strokeStyle = "#172326";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(x, y - err);
-          ctx.lineTo(x, y + err);
-          ctx.moveTo(x - 12, y - err);
-          ctx.lineTo(x + 12, y - err);
-          ctx.stroke();
-          ctx.fillStyle = "#172326";
-          group.relativeValues.forEach((value, repIndex) => {
-            const jitter = (repIndex - (group.relativeValues.length - 1) / 2) * Math.min(9, barW / 6);
-            ctx.beginPath();
-            ctx.arc(x + jitter, pad.t + h - value / maxY * h, 3.5, 0, Math.PI * 2);
-            ctx.fill();
-          });
-          ctx.save();
-          ctx.translate(x, pad.t + h + 24);
-          ctx.rotate(-Math.PI / 7);
-          ctx.textAlign = "right";
-          ctx.font = "14px Arial";
-          ctx.fillText(group.group, 0, 0);
-          ctx.restore();
-          ctx.textAlign = "center";
-          ctx.font = "13px Arial";
-          ctx.fillText(group.pStars, x, Math.max(18, y - err - 14));
-        });
-        ctx.textAlign = "center";
-        ctx.font = "700 18px Arial";
-        ctx.fillStyle = "#172326";
-        ctx.fillText(`${targetName} / ${refName} 相对灰度`, canvas.width / 2, 24);
-        ctx.save();
-        ctx.translate(20, canvas.height / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.font = "14px Arial";
-        ctx.fillText("Relative expression", 0, 0);
-        ctx.restore();
-      }
-
-      function calculateWbGray() {
-        try {
-          const rows = parseWbGrayRows($("wbg-data").value);
-          const targetBg = parseFloat($("wbg-bg-target").value) || 0;
-          const refBg = parseFloat($("wbg-bg-ref").value) || 0;
-          const controlName = $("wbg-control-group").value.trim();
-          const testMode = $("wbg-test-mode").value;
-          const targetName = $("wbg-target-name").value.trim() || "Target";
-          const refName = $("wbg-ref-name").value.trim() || "Reference";
-          if (!rows.length) throw new Error("没有可用 WB 灰度数据。");
-          const processed = rows.map((row) => {
-            const target = row.target - targetBg;
-            const ref = row.ref - refBg;
-            return {
-              ...row,
-              correctedTarget: target,
-              correctedRef: ref,
-              normalized: ref > 0 ? target / ref : NaN
-            };
-          }).filter((row) => isFinite(row.normalized) && row.normalized > 0);
-          if (!processed.length) throw new Error("扣背景后没有有效的目的/内参比值。");
-          const groupedRaw = wbgGroupRows(processed);
-          const control = groupedRaw.find((group) => qpaNorm(group.group) === qpaNorm(controlName));
-          if (!control) throw new Error("没有找到对照组，请检查对照组名称。");
-          const controlMean = mean(control.entries.map((entry) => entry.normalized));
-          if (!isFinite(controlMean) || controlMean <= 0) throw new Error("对照组归一化均值无效。");
-          const controlRelativeValues = control.entries.map((entry) => entry.normalized / controlMean);
-          const groups = groupedRaw.map((group) => {
-            const normalizedValues = group.entries.map((entry) => entry.normalized);
-            const relativeValues = normalizedValues.map((value) => value / controlMean);
-            const p = qpaNorm(group.group) === qpaNorm(controlName) ? { p: 1 } : qpaTTest(relativeValues, controlRelativeValues, testMode);
-            return {
-              group: group.group,
-              entries: group.entries,
-              normalizedValues,
-              relativeValues,
-              normalizedMean: mean(normalizedValues),
-              normalizedSd: sd(normalizedValues),
-              relativeMean: mean(relativeValues),
-              relativeSd: sd(relativeValues),
-              relativeSem: qpaSem(relativeValues),
-              pValue: p.p,
-              pStars: qpaPStars(p.p)
-            };
-          });
-          const tableRows = groups.map((group) => [
-            escapeHtml(group.group),
-            fmtInt(group.relativeValues.length),
-            fmt(group.normalizedMean, 4),
-            fmt(group.normalizedSd, 4),
-            fmt(group.relativeMean, 4),
-            fmt(group.relativeSd, 4),
-            fmt(group.relativeSem, 4),
-            isFinite(group.pValue) ? fmt(group.pValue, 5) : "n/a",
-            escapeHtml(group.pStars)
-          ]);
-          wbgLastCsv = wbgBuildCsv(groups);
-          $("wbg-download").disabled = !wbgLastCsv;
-          setResult("wbg-result", `
-            <p class="result-title">WB 灰度分析结果</p>
-            <div class="metric-grid">
-              <div class="metric"><strong>${fmtInt(processed.length)}</strong><span>有效泳道/重复</span></div>
-              <div class="metric"><strong>${escapeHtml(controlName)}</strong><span>对照组设为 1</span></div>
-              <div class="metric"><strong>${escapeHtml(targetName)}</strong><span>目的蛋白</span></div>
-              <div class="metric"><strong>${escapeHtml(refName)}</strong><span>内参蛋白</span></div>
-            </div>
-            ${table(["组别", "n", "目的/内参均值", "目的/内参SD", "相对表达均值", "SD", "SEM", "P value", "显著性"], tableRows)}
-            <div class="notice ok"><strong>QC：</strong>已完成目的/内参归一化、对照组归一化和 Prism column 数据导出。</div>
-          `, "ok");
-          drawWbGrayChart(groups, targetName, refName);
-          return true;
-        } catch (error) {
-          wbgLastCsv = "";
-          $("wbg-download").disabled = true;
-          $("wbg-chart-box").style.display = "none";
-          setResult("wbg-result", `<p class="result-title">WB 灰度分析失败</p><div class="notice danger">${escapeHtml(error.message)}</div>`, "danger");
-          return false;
-        }
-      }
-
-      function fillWbGrayExample() {
-        $("wbg-target-name").value = "Target";
-        $("wbg-ref-name").value = "ACTB / GAPDH";
-        $("wbg-control-group").value = "Control";
-        $("wbg-bg-target").value = "0";
-        $("wbg-bg-ref").value = "0";
-        $("wbg-data").value = "Control, 1, 12800, 9600\nControl, 2, 13250, 9900\nControl, 3, 12650, 9480\nTreat_1, 1, 20500, 10100\nTreat_1, 2, 19800, 9900\nTreat_1, 3, 21200, 10350\nTreat_2, 1, 8600, 9700\nTreat_2, 2, 9100, 10050\nTreat_2, 3, 8800, 9850";
-        calculateWbGray();
-      }
-
-      function downloadWbGrayCsv() {
-        downloadCsv("wb_density_prism.csv", wbgLastCsv);
-      }
-
       function calculateLentivirus() {
         const totalDnaUg = getNumber("lv-total-dna");
         const transferRatio = getNumber("lv-transfer-ratio");
@@ -6162,7 +5301,55 @@
         calculateLentivirus();
       }
 
+      const QPCR_MODES = ["rt", "mastermix", "qpcrdata", "qmulti"];
+
+      function activateQpcrMode(name, shouldUpdateHash) {
+        const mode = QPCR_MODES.includes(name) ? name : "rt";
+        document.querySelectorAll("[data-qpcr-mode-target]").forEach((button) => {
+          const active = button.dataset.qpcrModeTarget === mode;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-selected", active ? "true" : "false");
+          button.tabIndex = active ? 0 : -1;
+        });
+        document.querySelectorAll("[data-qpcr-mode]").forEach((section) => {
+          const active = section.dataset.qpcrMode === mode;
+          section.classList.toggle("active", active);
+          section.hidden = !active;
+        });
+        if (shouldUpdateHash) history.replaceState(null, "", mode === "rt" ? "#qpcr" : "#" + mode);
+      }
+
+      function handleQpcrModeKeydown(event) {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const current = QPCR_MODES.indexOf(event.currentTarget.dataset.qpcrModeTarget);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? QPCR_MODES.length - 1 :
+          (current + (event.key === "ArrowRight" ? 1 : -1) + QPCR_MODES.length) % QPCR_MODES.length;
+        activateQpcrMode(QPCR_MODES[next], true);
+        document.querySelector(`[data-qpcr-mode-target="${QPCR_MODES[next]}"]`)?.focus();
+      }
+
+      function routeFromHash() {
+        const initialTab = decodeURIComponent((location.hash || "").replace("#", "")).toLowerCase();
+        const tabNames = Array.from(document.querySelectorAll(".tab-button")).map((button) => button.dataset.tab);
+        const legacyQpcrMode = { qpcr: "rt", mastermix: "mastermix", qpcrdata: "qpcrdata", qmulti: "qmulti" }[initialTab];
+        const revealPanel = (name) => window.requestAnimationFrame(() => $("panel-" + name)?.scrollIntoView({ block: "start" }));
+        if (initialTab === "wbdensity") {
+          location.replace(WB_WORKSPACE_URL);
+        } else if (legacyQpcrMode) {
+          activateTab("qpcr", false);
+          activateQpcrMode(legacyQpcrMode, false);
+          revealPanel("qpcr");
+        } else if (tabNames.includes(initialTab)) {
+          activateTab(initialTab, false);
+          revealPanel(initialTab);
+        } else {
+          activateTab("cell", false);
+        }
+      }
+
       function activateTab(name, shouldUpdateHash) {
+        if (name === "qpcr" && shouldUpdateHash) activateQpcrMode("rt", false);
         let activeTabButton = null;
         document.querySelectorAll(".tab-button").forEach((button) => {
           const active = button.dataset.tab === name;
@@ -6201,6 +5388,10 @@
         });
         document.querySelectorAll("[data-workbench-tab]").forEach((button) => {
           button.addEventListener("click", () => jumpToTool(button.dataset.workbenchTab));
+        });
+        document.querySelectorAll("[data-qpcr-mode-target]").forEach((button) => {
+          button.addEventListener("click", () => activateQpcrMode(button.dataset.qpcrModeTarget, true));
+          button.addEventListener("keydown", handleQpcrModeKeydown);
         });
 
         $("theme-toggle").addEventListener("click", toggleTheme);
@@ -6297,24 +5488,6 @@
         $("qme-prism-download").addEventListener("click", downloadQpcrMultiPrismCsv);
         $("bca-calc").addEventListener("click", calculateBcaAll);
         $("bca-example").addEventListener("click", fillBcaExample);
-        $("wbg-image-file").addEventListener("change", wbgRoiLoadImage);
-        $("wbg-roi-canvas").addEventListener("pointerdown", wbgRoiPointerDown);
-        $("wbg-roi-canvas").addEventListener("pointermove", wbgRoiPointerMove);
-        $("wbg-roi-canvas").addEventListener("pointerup", wbgRoiPointerUp);
-        $("wbg-roi-canvas").addEventListener("pointercancel", () => {
-          wbgRoiDrag = null;
-          wbgRoiDraw();
-        });
-        $("wbg-roi-undo").addEventListener("click", wbgRoiUndo);
-        $("wbg-roi-clear").addEventListener("click", wbgRoiClear);
-        $("wbg-roi-to-table").addEventListener("click", wbgRoiToTable);
-        $("wbg-montage-undo").addEventListener("click", wbgMontageUndo);
-        $("wbg-montage-clear").addEventListener("click", wbgMontageClear);
-        $("wbg-montage-render").addEventListener("click", wbgMontageRender);
-        $("wbg-montage-download").addEventListener("click", wbgMontageDownload);
-        $("wbg-calc").addEventListener("click", calculateWbGray);
-        $("wbg-example").addEventListener("click", fillWbGrayExample);
-        $("wbg-download").addEventListener("click", downloadWbGrayCsv);
         $("lv-calc").addEventListener("click", calculateLentivirus);
         $("lv-example").addEventListener("click", fillLentivirusExample);
       }
@@ -6326,18 +5499,13 @@
       setupAssumptionNotes();
       setupPresetRows();
       setupLiveFieldValidation();
+      migrateQpcrDrafts();
       setupAutoSave();
       setupTextareaAutosize();
       registerServiceWorker();
       bindEvents();
       qpaUpdateCompareModeUi();
       vaPlateRender();
-
-      const initialTab = (location.hash || "").replace("#", "");
-      const tabNames = Array.from(document.querySelectorAll(".tab-button")).map((button) => button.dataset.tab);
-      if (tabNames.includes(initialTab)) {
-        activateTab(initialTab, false);
-      } else {
-        activateTab("cell", false);
-      }
+      window.addEventListener("hashchange", routeFromHash);
+      routeFromHash();
     })();
