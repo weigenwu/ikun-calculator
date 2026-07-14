@@ -4,28 +4,30 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#08766d" />
-  <meta name="application-name" content="实验室小神器" />
+  <meta name="description" content="实验室一体化工作台：实验计算器、WB 组图与灰度分析、IF/IHC 组图统一入口。" />
+  <meta name="application-name" content="实验室一体化工作台" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="实验室小神器" />
+  <meta name="apple-mobile-web-app-title" content="实验室工作台" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="msapplication-TileColor" content="#08766d" />
+  <link rel="canonical" href="https://weigenwu.github.io/ikun-calculator/" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <title>实验室小神器</title>
+  <title>实验室一体化工作台</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="brand-copy">
-        <h1>实验室小神器</h1>
-        <p class="subtitle">实验成功，顺利毕业</p>
+        <h1>实验室一体化工作台</h1>
+        <p class="subtitle">计算 · WB · IF/IHC，一处进入</p>
       </div>
       <div class="hero-side">
         <div class="hero-controls">
-          <div class="status-chip">哎哟，你干嘛！！！</div>
-          <div class="version-chip" id="app-version">v22</div>
+          <div class="status-chip">Lab Suite</div>
+          <div class="version-chip" id="app-version">v23</div>
           <div class="signature-chip">金吾卫w²g</div>
           <button class="theme-toggle" type="button" id="theme-toggle" aria-pressed="false" aria-label="切换白天和夜间模式">
             <span class="theme-orbit" aria-hidden="true"><span class="theme-dot"></span></span>
@@ -46,6 +48,12 @@
       </div>
     </header>
 
+    <nav class="suite-nav" aria-label="实验室工具套件">
+      <a class="active" href="https://weigenwu.github.io/ikun-calculator/" aria-current="page">实验计算器</a>
+      <a href="https://weigenwu.github.io/wb/#studio" target="_blank" rel="noopener">WB 组图与灰度 ↗</a>
+      <a href="https://if-group-pictures.onrender.com/" target="_blank" rel="noopener">IF / IHC 组图 ↗</a>
+    </nav>
+
     <div class="update-banner" id="update-banner" hidden>
       <div>
         <strong>发现新版网页。</strong>
@@ -53,6 +61,40 @@
       </div>
       <button class="action small" type="button" id="update-refresh">立即刷新</button>
     </div>
+
+    <section class="suite-portal" aria-labelledby="suite-portal-title">
+      <div class="suite-portal-head">
+        <div>
+          <p class="workbench-eyebrow">实验室工具套件</p>
+          <h2 id="suite-portal-title">今天要处理哪一步？</h2>
+        </div>
+        <span class="suite-status">三个工具 · 一个入口</span>
+      </div>
+      <div class="suite-grid">
+        <a class="suite-card" href="#cell" data-workbench-tab="cell">
+          <span class="suite-card-index">01</span>
+          <strong>实验计算器</strong>
+          <span>细胞、读板、qPCR、BCA/WB 与流式计算。</span>
+          <small class="suite-privacy local">浏览器本地计算 · 可离线</small>
+        </a>
+        <a class="suite-card" href="https://weigenwu.github.io/wb/#studio" target="_blank" rel="noopener">
+          <span class="suite-card-index">02</span>
+          <strong>WB 组图与灰度</strong>
+          <span>TIFF 条带、组图、灰度定量与投稿合规导出。</span>
+          <small class="suite-privacy local">原图仅在浏览器本地处理</small>
+        </a>
+        <a class="suite-card server" href="https://if-group-pictures.onrender.com/" target="_blank" rel="noopener">
+          <span class="suite-card-index">03</span>
+          <strong>IF / IHC 组图</strong>
+          <span>批量上传、统一标注并导出 PNG、PDF 或 PPTX。</span>
+          <small class="suite-privacy remote">图片会上传至处理服务器</small>
+        </a>
+      </div>
+      <div class="privacy-boundary" role="note">
+        <strong>数据边界：</strong>
+        <span>本页计算器与 WB 工具在浏览器本地处理；IF/IHC 需要把选中的图片上传到服务器，临时任务文件按服务端策略清理。请先移除姓名、编号等敏感信息。</span>
+      </div>
+    </section>
 
     <section class="workbench" aria-label="今日工作台">
       <div class="workbench-head">
@@ -1294,6 +1336,13 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
       </section>
 
       <section id="panel-wbdensity" class="tool-panel" data-panel="wbdensity">
+        <div class="migration-banner" role="note">
+          <div>
+            <strong>WB 组图与灰度工作流已有新版。</strong>
+            <span>新版支持 TIFF、本地项目、规范组图和投稿导出；本页旧版灰度计算仍完整保留。</span>
+          </div>
+          <a href="https://weigenwu.github.io/wb/#studio" target="_blank" rel="noopener">打开新版 WB 工作台 ↗</a>
+        </div>
         <div class="module-head">
           <div>
             <h2>WB 灰度归一化分析计算器</h2>
