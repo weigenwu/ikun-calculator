@@ -300,70 +300,44 @@
       color: #ffe1a3;
     }
 
-    .suite-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .suite-card {
-      min-height: 178px;
-      display: grid;
-      align-content: start;
-      gap: 9px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: linear-gradient(155deg, var(--surface-soft), var(--surface));
-      color: var(--text);
-      padding: 16px;
-      text-decoration: none;
-      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-    }
-
-    .suite-card:hover,
-    .suite-card:focus-visible {
-      border-color: var(--accent);
-      box-shadow: 0 14px 28px rgba(21, 48, 53, 0.12);
-      transform: translateY(-2px);
-      outline: none;
-    }
-
-    .suite-card-index {
+    .suite-eyebrow {
+      margin: 0 0 3px;
       color: var(--accent-strong);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 900;
     }
 
-    .suite-card strong {
-      font-size: 19px;
+    .workflow-sections {
+      display: grid;
+      gap: 14px;
+      min-width: 0;
     }
 
-    .suite-card > span:not(.suite-card-index) {
-      color: var(--muted);
-      font-size: 14px;
+    .workflow-stage {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      min-width: 0;
     }
 
-    .suite-privacy {
-      width: fit-content;
-      margin-top: auto;
+    .workflow-stage-head {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      margin-bottom: 9px;
+    }
+
+    .workflow-stage-head span {
       border-radius: 999px;
-      padding: 4px 8px;
-      font-size: 12px;
-      font-weight: 900;
-    }
-
-    .suite-privacy.local {
       background: var(--accent-soft);
       color: var(--accent-strong);
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 900;
     }
 
-    .suite-privacy.remote {
-      background: var(--amber-soft);
-      color: #815213;
-    }
-
-    body.theme-night .suite-privacy.remote {
-      color: #ffe1a3;
+    .workflow-stage-head h3 {
+      margin: 0;
+      font-size: 16px;
     }
 
     .privacy-boundary {
@@ -382,47 +356,6 @@
     .privacy-boundary strong {
       flex: 0 0 auto;
       color: var(--text);
-    }
-
-    .migration-banner {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 14px;
-      margin: 2px 0 16px;
-      border: 1px solid rgba(8, 118, 109, 0.28);
-      border-left: 5px solid var(--accent);
-      border-radius: var(--radius);
-      background: var(--accent-soft);
-      padding: 12px 14px;
-    }
-
-    .migration-banner div {
-      display: grid;
-      gap: 2px;
-    }
-
-    .migration-banner span {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .migration-banner a {
-      flex: 0 0 auto;
-      border-radius: 6px;
-      background: var(--accent);
-      color: #fff;
-      padding: 8px 11px;
-      font-size: 13px;
-      font-weight: 900;
-      text-decoration: none;
-    }
-
-    .migration-banner a:hover,
-    .migration-banner a:focus-visible {
-      background: var(--accent-strong);
-      outline: 2px solid var(--amber);
-      outline-offset: 2px;
     }
 
     .theme-toggle {
@@ -589,6 +522,7 @@
       overflow: hidden;
     }
 
+
     .mascot-sprite {
       width: 96px;
       height: 104px;
@@ -605,52 +539,12 @@
       animation-duration: 0.72s;
     }
 
-    .workbench {
-      margin: 0 0 12px;
-      border: 1px solid rgba(8, 118, 109, 0.22);
-      border-radius: var(--radius);
-      background: var(--surface);
-      box-shadow: 0 12px 30px rgba(21, 48, 53, 0.08);
-      padding: 16px;
-      transition: background 520ms ease, border-color 520ms ease, box-shadow 520ms ease;
-    }
-
-    body.theme-night .workbench {
-      border-color: rgba(83, 194, 185, 0.26);
-      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
-    }
-
-    .workbench-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .workbench-eyebrow {
-      margin: 0 0 3px;
-      color: var(--accent-strong);
-      font-size: 13px;
-      font-weight: 900;
-    }
-
-    .workbench-status {
-      flex: 0 0 auto;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--surface-soft);
-      color: var(--muted);
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-
     .workflow-grid {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
       gap: 10px;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .workflow-card {
@@ -667,6 +561,7 @@
       gap: 6px;
       box-shadow: 0 8px 18px rgba(21, 48, 53, 0.06);
       transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+      text-decoration: none;
     }
 
     body.theme-night .workflow-card {
@@ -699,6 +594,26 @@
     .workflow-card strong {
       font-size: 16px;
       line-height: 1.25;
+    }
+
+    .workflow-card > span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .workflow-card.external {
+      border-color: rgba(8, 118, 109, 0.42);
+      background: linear-gradient(155deg, var(--accent-soft), var(--surface));
+    }
+
+    .workflow-card.external.remote small {
+      background: var(--amber-soft);
+      color: #815213;
+    }
+
+    body.theme-night .workflow-card.external.remote small {
+      color: #ffe1a3;
     }
 
     @keyframes ikun-idle {
@@ -803,6 +718,40 @@
       box-shadow: 0 12px 24px rgba(8, 118, 109, 0.22);
     }
 
+    .tab-external-link {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(8, 118, 109, 0.42);
+      border-radius: var(--radius);
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      padding: 0 10px;
+      font-size: 14px;
+      font-weight: 900;
+      text-align: center;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .tab-external-link.remote {
+      border-color: rgba(217, 144, 34, 0.42);
+      background: var(--amber-soft);
+      color: #815213;
+    }
+
+    .tab-external-link:hover,
+    .tab-external-link:focus-visible {
+      border-color: var(--accent);
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    body.theme-night .tab-external-link.remote {
+      color: #ffe1a3;
+    }
+
     .tool-panel {
       display: none;
       background: var(--surface);
@@ -836,6 +785,65 @@
       padding: 4px 0 15px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 16px;
+    }
+
+    .qpcr-mode-nav {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0 0 18px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+
+    .qpcr-mode-button {
+      min-height: 46px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--text);
+      padding: 7px 9px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .qpcr-mode-button:hover,
+    .qpcr-mode-button:focus-visible {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .qpcr-mode-button.active {
+      border-color: var(--accent-strong);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .qpcr-mode[hidden] {
+      display: none !important;
+    }
+
+    .qpcr-step-head {
+      margin-bottom: 14px;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      background: var(--accent-soft);
+      padding: 10px 12px;
+    }
+
+    .qpcr-step-head h3 {
+      margin: 0 0 4px;
+      font-size: 18px;
+    }
+
+    .qpcr-step-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
     }
 
     h2 {
@@ -1267,83 +1275,6 @@
       border-radius: 8px;
     }
 
-    .wbg-roi-stage {
-      position: relative;
-      width: 100%;
-      min-height: 340px;
-      margin-top: 12px;
-      border: 1px dashed var(--border);
-      border-radius: var(--radius);
-      background:
-        linear-gradient(45deg, rgba(8, 118, 109, 0.06) 25%, transparent 25%),
-        linear-gradient(-45deg, rgba(8, 118, 109, 0.06) 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, rgba(8, 118, 109, 0.06) 75%),
-        linear-gradient(-45deg, transparent 75%, rgba(8, 118, 109, 0.06) 75%);
-      background-size: 20px 20px;
-      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
-      overflow: auto;
-      touch-action: none;
-    }
-
-    .wbg-roi-stage canvas {
-      display: block;
-      max-width: 100%;
-      height: auto;
-      cursor: crosshair;
-      user-select: none;
-    }
-
-    .wbg-roi-placeholder {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      padding: 20px;
-      color: var(--muted);
-      text-align: center;
-      pointer-events: none;
-    }
-
-    .wbg-roi-stage.has-image .wbg-roi-placeholder {
-      display: none;
-    }
-
-    .roi-kind-target {
-      color: #08766d;
-      font-weight: 900;
-    }
-
-    .roi-kind-ref {
-      color: #d97706;
-      font-weight: 900;
-    }
-
-    .roi-kind-bg {
-      color: #6b7280;
-      font-weight: 900;
-    }
-
-    .roi-kind-montage {
-      color: #7c3aed;
-      font-weight: 900;
-    }
-
-    .wbg-montage-preview {
-      margin-top: 12px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: #fff;
-      padding: 14px;
-      overflow: auto;
-    }
-
-    .wbg-montage-preview canvas {
-      display: block;
-      max-width: 100%;
-      height: auto;
-      background: #fff;
-    }
-
     .plate-grid {
       min-width: 920px;
       display: grid;
@@ -1643,54 +1574,35 @@
         gap: 6px;
       }
 
-      .tab-button {
+      .tab-button,
+      .tab-external-link {
         min-height: 38px;
         box-shadow: none;
         font-size: 14px;
       }
 
-      .workbench-head {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: start;
+      .qpcr-mode-nav {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
       }
 
-      .workbench {
-        padding: 12px;
-      }
-
-      .suite-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .suite-card {
-        min-height: 0;
-      }
-
-      .migration-banner {
-        align-items: stretch;
-        flex-direction: column;
-      }
-
-      .migration-banner a {
-        text-align: center;
+      .qpcr-mode-button {
+        flex: 0 0 180px;
+        scroll-snap-align: start;
       }
 
       .workflow-grid {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
-        overflow-x: auto;
-        overscroll-behavior-inline: contain;
-        padding: 2px 2px 5px;
-        scroll-snap-type: x proximity;
-        -webkit-overflow-scrolling: touch;
+        overflow: visible;
+        padding: 0;
       }
 
       .workflow-card {
-        flex: 0 0 158px;
         min-height: 64px;
         padding: 10px;
-        scroll-snap-align: start;
       }
 
       .workflow-card strong {
@@ -1745,7 +1657,12 @@
 
       .suite-nav {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .suite-nav a {
+        padding-inline: 6px;
+        font-size: 13px;
       }
 
       .suite-portal {
@@ -1801,7 +1718,8 @@
         display: none;
       }
 
-      .tab-button {
+      .tab-button,
+      .tab-external-link {
         min-height: 36px;
         padding: 0 9px;
         font-size: 13px;
@@ -1839,7 +1757,6 @@
       .tabs,
       .suite-nav,
       .suite-portal,
-      .workbench,
       .actions,
       .module-tools,
       .preset-row,
