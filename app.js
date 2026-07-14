@@ -30,7 +30,7 @@
       let musicObjectUrl = "";
       let deferredInstallPrompt = null;
       const themeKey = "w2g-calculator-theme";
-      const APP_VERSION = "v22";
+      const APP_VERSION = "v23";
       const draftPrefix = "w2g-calculator-draft:";
       let pendingServiceWorker = null;
       let reloadingForUpdate = false;
