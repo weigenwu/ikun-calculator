@@ -27,7 +27,7 @@
       <div class="hero-side">
         <div class="hero-controls">
           <div class="status-chip">Lab Suite</div>
-          <div class="version-chip" id="app-version">v23</div>
+          <div class="version-chip" id="app-version">v24</div>
           <div class="signature-chip">金吾卫w²g</div>
           <button class="theme-toggle" type="button" id="theme-toggle" aria-pressed="false" aria-label="切换白天和夜间模式">
             <span class="theme-orbit" aria-hidden="true"><span class="theme-dot"></span></span>
@@ -49,9 +49,9 @@
     </header>
 
     <nav class="suite-nav" aria-label="实验室工具套件">
-      <a class="active" href="https://weigenwu.github.io/ikun-calculator/" aria-current="page">实验计算器</a>
-      <a href="https://weigenwu.github.io/wb/#studio" target="_blank" rel="noopener">WB 组图与灰度 ↗</a>
-      <a href="https://if-group-pictures.onrender.com/" target="_blank" rel="noopener">IF / IHC 组图 ↗</a>
+      <a class="active" href="https://weigenwu.github.io/ikun-calculator/" aria-current="page">实验流程</a>
+      <a href="https://weigenwu.github.io/wb/#studio">WB</a>
+      <a href="https://if-group-pictures.onrender.com/">IF / IHC</a>
     </nav>
 
     <div class="update-banner" id="update-banner" hidden>
@@ -65,69 +65,48 @@
     <section class="suite-portal" aria-labelledby="suite-portal-title">
       <div class="suite-portal-head">
         <div>
-          <p class="workbench-eyebrow">实验室工具套件</p>
-          <h2 id="suite-portal-title">今天要处理哪一步？</h2>
+          <p class="suite-eyebrow">从实验设计到成图</p>
+          <h2 id="suite-portal-title">按实验流程选择工具</h2>
         </div>
-        <span class="suite-status">三个工具 · 一个入口</span>
+        <span class="suite-status">10 个计算模块 · 2 个成图工作台</span>
       </div>
-      <div class="suite-grid">
-        <a class="suite-card" href="#cell" data-workbench-tab="cell">
-          <span class="suite-card-index">01</span>
-          <strong>实验计算器</strong>
-          <span>细胞、读板、qPCR、BCA/WB 与流式计算。</span>
-          <small class="suite-privacy local">浏览器本地计算 · 可离线</small>
-        </a>
-        <a class="suite-card" href="https://weigenwu.github.io/wb/#studio" target="_blank" rel="noopener">
-          <span class="suite-card-index">02</span>
-          <strong>WB 组图与灰度</strong>
-          <span>TIFF 条带、组图、灰度定量与投稿合规导出。</span>
-          <small class="suite-privacy local">原图仅在浏览器本地处理</small>
-        </a>
-        <a class="suite-card server" href="https://if-group-pictures.onrender.com/" target="_blank" rel="noopener">
-          <span class="suite-card-index">03</span>
-          <strong>IF / IHC 组图</strong>
-          <span>批量上传、统一标注并导出 PNG、PDF 或 PPTX。</span>
-          <small class="suite-privacy remote">图片会上传至处理服务器</small>
-        </a>
+      <div class="workflow-sections">
+        <section class="workflow-stage" aria-labelledby="workflow-prepare">
+          <div class="workflow-stage-head"><span>01</span><h3 id="workflow-prepare">样本准备与处理</h3></div>
+          <div class="workflow-grid">
+            <button class="workflow-card" type="button" data-workbench-tab="cell"><small>细胞</small><strong>细胞计数</strong><span>浓度与重悬体积</span></button>
+            <button class="workflow-card" type="button" data-workbench-tab="seeding"><small>细胞</small><strong>细胞铺板</strong><span>孔板与接种体积</span></button>
+            <button class="workflow-card" type="button" data-workbench-tab="drug"><small>处理</small><strong>药物梯度</strong><span>母液与工作液配制</span></button>
+            <button class="workflow-card" type="button" data-workbench-tab="virus"><small>转染</small><strong>慢病毒包装</strong><span>质粒、PEI 与 Opti-MEM</span></button>
+          </div>
+        </section>
+        <section class="workflow-stage" aria-labelledby="workflow-measure">
+          <div class="workflow-stage-head"><span>02</span><h3 id="workflow-measure">检测与定量</h3></div>
+          <div class="workflow-grid">
+            <button class="workflow-card" type="button" data-workbench-tab="viability"><small>读板</small><strong>活性 / ADCC</strong><span>96 孔板读取与归一化</span></button>
+            <button class="workflow-card" type="button" data-workbench-tab="ic50"><small>药敏</small><strong>IC50 曲线</strong><span>剂量反应与快速拟合</span></button>
+            <button class="workflow-card" type="button" data-workbench-tab="elisa"><small>读板</small><strong>ELISA 标准曲线</strong><span>4PL 或线性拟合</span></button>
+            <button class="workflow-card" type="button" data-workbench-tab="bca"><small>蛋白</small><strong>蛋白定量与上样</strong><span>BCA、RIPA 分配与上样体积</span></button>
+          </div>
+        </section>
+        <section class="workflow-stage" aria-labelledby="workflow-analyse">
+          <div class="workflow-stage-head"><span>03</span><h3 id="workflow-analyse">分子检测与统计</h3></div>
+          <div class="workflow-grid">
+            <button class="workflow-card" type="button" data-workbench-tab="qpcr"><small>全流程</small><strong>qPCR 全流程</strong><span>RT、Master Mix、单基因与多基因分析</span></button>
+            <button class="workflow-card" type="button" data-workbench-tab="flow"><small>流式</small><strong>凋亡 / 周期</strong><span>分组统计与图表导出</span></button>
+          </div>
+        </section>
+        <section class="workflow-stage" aria-labelledby="workflow-figure">
+          <div class="workflow-stage-head"><span>04</span><h3 id="workflow-figure">图像定量与成图</h3></div>
+          <div class="workflow-grid">
+            <a class="workflow-card external" href="https://weigenwu.github.io/wb/#studio"><small>浏览器本地</small><strong>WB 组图与灰度</strong><span>TIFF、Prism 数据与投稿导出 →</span></a>
+            <a class="workflow-card external remote" href="https://if-group-pictures.onrender.com/"><small>服务器处理</small><strong>IF / IHC 组图</strong><span>比例尺、ROI 与多格式导出 →</span></a>
+          </div>
+        </section>
       </div>
       <div class="privacy-boundary" role="note">
         <strong>数据边界：</strong>
         <span>本页计算器与 WB 工具在浏览器本地处理；IF/IHC 需要把选中的图片上传到服务器，临时任务文件按服务端策略清理。请先移除姓名、编号等敏感信息。</span>
-      </div>
-    </section>
-
-    <section class="workbench" aria-label="今日工作台">
-      <div class="workbench-head">
-        <div>
-          <p class="workbench-eyebrow">今日工作台</p>
-        </div>
-        <div class="workbench-status">本地 · 离线 · CSV</div>
-      </div>
-      <div class="workflow-grid">
-        <button class="workflow-card" type="button" data-workbench-tab="viability">
-          <small>读板入口</small>
-          <strong>96 孔板读数</strong>
-        </button>
-        <button class="workflow-card" type="button" data-workbench-tab="ic50">
-          <small>药敏曲线</small>
-          <strong>IC50 药敏</strong>
-        </button>
-        <button class="workflow-card" type="button" data-workbench-tab="elisa">
-          <small>标准曲线</small>
-          <strong>ELISA / BCA</strong>
-        </button>
-        <button class="workflow-card" type="button" data-workbench-tab="qpcrdata">
-          <small>表达分析</small>
-          <strong>qPCR 图表</strong>
-        </button>
-        <button class="workflow-card" type="button" data-workbench-tab="flow">
-          <small>流式统计</small>
-          <strong>凋亡 / 周期</strong>
-        </button>
-        <button class="workflow-card" type="button" data-workbench-tab="cell">
-          <small>实验准备</small>
-          <strong>计数 / 铺板 / 配药</strong>
-        </button>
       </div>
     </section>
 
@@ -142,28 +121,26 @@
         </div>
       </div>
       <div class="tab-group">
-        <div class="tab-group-title">读板分析</div>
+        <div class="tab-group-title">读板与蛋白</div>
         <div class="tab-group-tools">
           <button class="tab-button" type="button" data-tab="viability" aria-controls="panel-viability">活性/ADCC</button>
           <button class="tab-button" type="button" data-tab="ic50" aria-controls="panel-ic50">IC50</button>
           <button class="tab-button" type="button" data-tab="elisa" aria-controls="panel-elisa">ELISA</button>
-          <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">BCA/WB</button>
+          <button class="tab-button" type="button" data-tab="bca" aria-controls="panel-bca">蛋白定量与上样</button>
         </div>
       </div>
       <div class="tab-group">
-        <div class="tab-group-title">分子实验</div>
+        <div class="tab-group-title">分子与统计</div>
         <div class="tab-group-tools">
-          <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR</button>
-          <button class="tab-button" type="button" data-tab="mastermix" aria-controls="panel-mastermix">Master Mix</button>
-          <button class="tab-button" type="button" data-tab="qpcrdata" aria-controls="panel-qpcrdata">qPCR分析</button>
-          <button class="tab-button" type="button" data-tab="qmulti" aria-controls="panel-qmulti">结果增强</button>
-        </div>
-      </div>
-      <div class="tab-group">
-        <div class="tab-group-title">蛋白 / 流式</div>
-        <div class="tab-group-tools">
+          <button class="tab-button" type="button" data-tab="qpcr" aria-controls="panel-qpcr">qPCR 全流程</button>
           <button class="tab-button" type="button" data-tab="flow" aria-controls="panel-flow">流式统计</button>
-          <button class="tab-button" type="button" data-tab="wbdensity" aria-controls="panel-wbdensity">WB灰度</button>
+        </div>
+      </div>
+      <div class="tab-group">
+        <div class="tab-group-title">图像工作台</div>
+        <div class="tab-group-tools">
+          <a class="tab-external-link" href="https://weigenwu.github.io/wb/#studio">WB 组图与灰度 →</a>
+          <a class="tab-external-link remote" href="https://if-group-pictures.onrender.com/">IF / IHC 组图 →</a>
         </div>
       </div>
     </nav>
@@ -464,7 +441,7 @@ Drug_2, 0.360, 0.372, 0.355</textarea>
                 <button class="action secondary small" type="button" id="va-plate-to-viability">生成到活性分析</button>
                 <button class="action secondary small" type="button" id="va-plate-to-ic50">生成到 IC50</button>
                 <button class="action secondary small" type="button" id="va-plate-to-elisa">生成到 ELISA</button>
-                <button class="action secondary small" type="button" id="va-plate-to-bca">生成到 BCA/WB</button>
+                <button class="action secondary small" type="button" id="va-plate-to-bca">生成到蛋白定量与上样</button>
               </div>
               <div class="help">点击孔位选择；按住 Ctrl/⌘ 可多选复孔，然后一次性标记为空白、对照、实验组、样本、IC50 浓度或标准品。</div>
             </div>
@@ -746,11 +723,24 @@ Treat_2, R3, 4.7, 18.8, 60.5, 16.0</textarea>
       <section id="panel-qpcr" class="tool-panel" data-panel="qpcr">
         <div class="module-head">
           <div>
-            <h2>qPCR RT 逆转录与上机配液计算器</h2>
-            <p class="module-note">同一份 RNA 样本列表用于 RT 体积计算和 qPCR 样本数统计。</p>
+            <h2>qPCR 全流程工作台</h2>
+            <p class="module-note">把 RT、上机配液、Master Mix、快速 ΔΔCt 和孔板多基因分析放在同一个连续工作流中。</p>
           </div>
-          <div class="quick-note">复孔数和额外多配孔数都可以按当天实验调整。</div>
+          <div class="quick-note">四个步骤保留各自原有计算与导出；用下面的模式标签切换。</div>
         </div>
+
+        <nav class="qpcr-mode-nav" role="tablist" aria-label="qPCR 全流程步骤">
+          <button class="qpcr-mode-button active" type="button" role="tab" id="qpcr-mode-tab-rt" data-qpcr-mode-target="rt" aria-controls="qpcr-mode-rt" aria-selected="true">① RT 与上机简算</button>
+          <button class="qpcr-mode-button" type="button" role="tab" id="qpcr-mode-tab-mastermix" data-qpcr-mode-target="mastermix" aria-controls="qpcr-mode-mastermix" aria-selected="false" tabindex="-1">② 精确 Master Mix</button>
+          <button class="qpcr-mode-button" type="button" role="tab" id="qpcr-mode-tab-qpcrdata" data-qpcr-mode-target="qpcrdata" aria-controls="qpcr-mode-qpcrdata" aria-selected="false" tabindex="-1">③ 快速结果分析</button>
+          <button class="qpcr-mode-button" type="button" role="tab" id="qpcr-mode-tab-qmulti" data-qpcr-mode-target="qmulti" aria-controls="qpcr-mode-qmulti" aria-selected="false" tabindex="-1">④ 孔板 / 多基因增强</button>
+        </nav>
+
+        <section id="qpcr-mode-rt" class="qpcr-mode active" data-qpcr-mode="rt" role="tabpanel" aria-labelledby="qpcr-mode-tab-rt">
+          <div class="qpcr-step-head">
+            <h3>RT 逆转录与 qPCR 上机简算</h3>
+            <p>同一份 RNA 样本列表用于 RT 体积计算和 qPCR 样本数统计；复杂配液请切换到“精确 Master Mix”。</p>
+          </div>
 
         <h3>一、RT 逆转录体系</h3>
         <div class="two-col">
@@ -856,7 +846,7 @@ Gene_2</textarea>
         </details>
       </section>
 
-      <section id="panel-mastermix" class="tool-panel" data-panel="mastermix">
+      <section id="qpcr-mode-mastermix" class="qpcr-mode" data-qpcr-mode="mastermix" role="tabpanel" aria-labelledby="qpcr-mode-tab-mastermix" hidden>
         <div class="module-head">
           <div>
             <h2>PCR / qPCR Master Mix 计算器增强版</h2>
@@ -956,7 +946,7 @@ Primer_2</textarea>
         </details>
       </section>
 
-      <section id="panel-qpcrdata" class="tool-panel" data-panel="qpcrdata">
+      <section id="qpcr-mode-qpcrdata" class="qpcr-mode" data-qpcr-mode="qpcrdata" role="tabpanel" aria-labelledby="qpcr-mode-tab-qpcrdata" hidden>
         <div class="module-head">
           <div>
             <h2>qPCR 下机数据分析计算器</h2>
@@ -1068,7 +1058,7 @@ Primer_2</textarea>
         </details>
       </section>
 
-      <section id="panel-qmulti" class="tool-panel" data-panel="qmulti">
+      <section id="qpcr-mode-qmulti" class="qpcr-mode" data-qpcr-mode="qmulti" role="tabpanel" aria-labelledby="qpcr-mode-tab-qmulti" hidden>
         <div class="module-head">
           <div>
             <h2>qPCR 结果增强版多基因计算器</h2>
@@ -1232,11 +1222,12 @@ Primer_2</textarea>
           <div class="help">这里的 P 值基于孔级技术重复计算，只适合快速预览；正式统计仍建议用独立生物学重复。</div>
         </details>
       </section>
+      </section>
 
       <section id="panel-bca" class="tool-panel" data-panel="bca">
         <div class="module-head">
           <div>
-            <h2>BCA 蛋白浓度与 WB 已煮样上样量计算器</h2>
+            <h2>蛋白定量与上样计算器</h2>
             <p class="module-note">适用于先用 RIPA 裂解并分配 BCA 与煮蛋白用量，再根据 BCA 结果计算已煮样 WB 上样量的流程。</p>
           </div>
           <div class="quick-note">可自定义每个样本的 RIPA 裂解总体积、煮蛋白取样量和 BCA 取样量。</div>
@@ -1307,7 +1298,7 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
         </div>
 
         <div class="actions">
-          <button class="action" type="button" id="bca-calc">计算 BCA 和 WB 上样量</button>
+          <button class="action" type="button" id="bca-calc">计算蛋白浓度与上样量</button>
           <button class="action secondary" type="button" id="bca-example">填入示例</button>
         </div>
 
@@ -1332,188 +1323,6 @@ Sample_3, 5, 0.910, 0.918, 0.906</textarea>
           <div><span class="formula">取已煮样体积 = 统一蛋白量 / 已煮样蛋白浓度</span></div>
           <div><span class="formula">1× loading补足体积 = 每泳道最终上样体积 - 取已煮样体积</span></div>
           <div><span class="formula">最多泳道数 = floor(煮样后总体积 / 每泳道取已煮样体积)</span></div>
-        </details>
-      </section>
-
-      <section id="panel-wbdensity" class="tool-panel" data-panel="wbdensity">
-        <div class="migration-banner" role="note">
-          <div>
-            <strong>WB 组图与灰度工作流已有新版。</strong>
-            <span>新版支持 TIFF、本地项目、规范组图和投稿导出；本页旧版灰度计算仍完整保留。</span>
-          </div>
-          <a href="https://weigenwu.github.io/wb/#studio" target="_blank" rel="noopener">打开新版 WB 工作台 ↗</a>
-        </div>
-        <div class="module-head">
-          <div>
-            <h2>WB 灰度归一化分析计算器</h2>
-            <p class="module-note">输入 ImageJ 等软件得到的目的条带和内参条带灰度，自动计算目的/内参、对照组归一化、P 值、柱状图和 Prism CSV。</p>
-          </div>
-          <div class="quick-note">这是 WB 结果分析板块，和 BCA/WB 上样量计算互不覆盖。</div>
-        </div>
-
-        <h3>一、图片条带读取助手</h3>
-        <div class="two-col">
-          <div class="panel">
-            <label for="wbg-image-file">上传 WB 图片</label>
-            <input id="wbg-image-file" type="file" accept=".png,.jpg,.jpeg,.webp,.bmp,.tif,.tiff,image/*" />
-            <div class="help">支持常见图片格式。上传后在图上拖拽框选条带或背景；灰度按原始像素计算，不会把显示缩放计入结果。</div>
-            <div class="wbg-roi-stage" id="wbg-roi-stage">
-              <canvas id="wbg-roi-canvas" width="960" height="520"></canvas>
-              <div class="wbg-roi-placeholder" id="wbg-roi-placeholder">上传 WB 图片后，在这里拖框选择条带。</div>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="grid">
-              <div>
-                <label for="wbg-roi-group">当前组名</label>
-                <input id="wbg-roi-group" type="text" value="Control" />
-              </div>
-              <div>
-                <label for="wbg-roi-lane">当前泳道 / 重复</label>
-                <input id="wbg-roi-lane" type="text" value="1" />
-              </div>
-              <div>
-                <label for="wbg-roi-kind">框选类型</label>
-                <select id="wbg-roi-kind">
-                  <option value="target">目的条带</option>
-                  <option value="ref">内参条带</option>
-                  <option value="target-bg">目的背景</option>
-                  <option value="ref-bg">内参背景</option>
-                  <option value="montage">组图裁剪行</option>
-                </select>
-              </div>
-              <div>
-                <label for="wbg-roi-mode">灰度算法</label>
-                <select id="wbg-roi-mode">
-                  <option value="dark">暗带信号：sum(255 - gray)</option>
-                  <option value="raw">原始灰度：sum(gray)</option>
-                </select>
-              </div>
-            </div>
-            <div class="actions">
-              <button class="action secondary small" type="button" id="wbg-roi-undo">删除最后一个框</button>
-              <button class="action secondary small" type="button" id="wbg-roi-clear">清空框选</button>
-              <button class="action small" type="button" id="wbg-roi-to-table">生成到灰度表</button>
-            </div>
-            <div id="wbg-roi-status" class="notice ok">建议先框选同一泳道附近的背景，再框选目的条带和内参条带；扣背景值会自动按面积校正。</div>
-            <div class="panel" style="margin-top:12px;">
-              <div class="section-title">条带组图参数</div>
-              <div class="grid">
-                <div>
-                  <label for="wbg-montage-protein">当前条带名称</label>
-                  <input id="wbg-montage-protein" type="text" value="HER2" />
-                </div>
-                <div>
-                  <label for="wbg-montage-kd">当前 kDa 大小</label>
-                  <input id="wbg-montage-kd" type="text" value="185 KD" />
-                </div>
-                <div>
-                  <label for="wbg-montage-groups">组别 / 泳道标签</label>
-                  <input id="wbg-montage-groups" type="text" value="Vector, OE" />
-                </div>
-                <div>
-                  <label for="wbg-montage-sample">样品 / 细胞名称</label>
-                  <input id="wbg-montage-sample" type="text" value="MDA-MB-231" />
-                </div>
-                <div>
-                  <label for="wbg-montage-angle">组别标签角度</label>
-                  <select id="wbg-montage-angle">
-                    <option value="-55">倾斜 -55°</option>
-                    <option value="-40">倾斜 -40°</option>
-                    <option value="0">水平</option>
-                  </select>
-                </div>
-              </div>
-              <div class="actions">
-                <button class="action secondary small" type="button" id="wbg-montage-undo">删除最后一行</button>
-                <button class="action secondary small" type="button" id="wbg-montage-clear">清空组图</button>
-                <button class="action small" type="button" id="wbg-montage-render">生成条带组图</button>
-                <button class="action secondary small" type="button" id="wbg-montage-download" disabled>下载 PNG</button>
-              </div>
-              <div class="help">使用方法：把“框选类型”切到“组图裁剪行”，在图上框住某个蛋白的一整行条带，然后填写蛋白名和 kDa。每框一次加入一行。</div>
-            </div>
-          </div>
-        </div>
-        <div id="wbg-roi-result" class="result" aria-live="polite"></div>
-        <div id="wbg-montage-result" class="result" aria-live="polite"></div>
-
-        <h3>二、灰度数据</h3>
-        <div class="two-col">
-          <div class="panel">
-            <label for="wbg-data">条带灰度表</label>
-            <textarea id="wbg-data">Control, 1, 12800, 9600
-Control, 2, 13250, 9900
-Control, 3, 12650, 9480
-Treat_1, 1, 20500, 10100
-Treat_1, 2, 19800, 9900
-Treat_1, 3, 21200, 10350
-Treat_2, 1, 8600, 9700
-Treat_2, 2, 9100, 10050
-Treat_2, 3, 8800, 9850</textarea>
-            <div class="help">格式：组名, 重复/泳道, 目的条带灰度, 内参条带灰度。每行对应一个生物学重复或泳道。</div>
-          </div>
-          <div class="panel">
-            <div class="grid">
-              <div>
-                <label for="wbg-target-name">目的蛋白</label>
-                <input id="wbg-target-name" type="text" value="Target" />
-              </div>
-              <div>
-                <label for="wbg-ref-name">内参蛋白</label>
-                <input id="wbg-ref-name" type="text" value="ACTB / GAPDH" />
-              </div>
-              <div>
-                <label for="wbg-control-group">对照组</label>
-                <input id="wbg-control-group" type="text" value="Control" />
-              </div>
-              <div>
-                <label for="wbg-bg-target">目的条带背景，可选</label>
-                <input id="wbg-bg-target" type="number" step="any" inputmode="decimal" value="0" />
-              </div>
-              <div>
-                <label for="wbg-bg-ref">内参条带背景，可选</label>
-                <input id="wbg-bg-ref" type="number" step="any" inputmode="decimal" value="0" />
-              </div>
-              <div>
-                <label for="wbg-test-mode">统计检验</label>
-                <select id="wbg-test-mode">
-                  <option value="welch">Welch t-test（默认）</option>
-                  <option value="student">Student t-test</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions">
-          <button class="action" type="button" id="wbg-calc">分析 WB 灰度</button>
-          <button class="action secondary" type="button" id="wbg-example">填入示例</button>
-          <button class="action secondary" type="button" id="wbg-download" disabled>导出 Prism CSV</button>
-        </div>
-
-        <div id="wbg-result" class="result" aria-live="polite"></div>
-        <div id="wbg-chart-box" class="result" aria-live="polite" style="display:none;">
-          <p class="result-title">WB 相对灰度柱状图</p>
-          <div class="chart-wrap">
-            <canvas id="wbg-chart" width="920" height="430"></canvas>
-          </div>
-        </div>
-
-        <details class="formula-box">
-          <summary>计算说明</summary>
-          <div class="section-title">图片 ROI 灰度读取</div>
-          <div><span class="formula">灰度 gray = 0.2126R + 0.7152G + 0.0722B</span></div>
-          <div><span class="formula">暗带积分灰度 = sum(255 - gray)</span></div>
-          <div><span class="formula">扣背景积分 = 条带积分灰度 - 背景平均信号 × 条带面积</span></div>
-          <div><span class="formula">生成到灰度表 = 同一组名/泳道的目的条带扣背景积分、内参条带扣背景积分</span></div>
-          <div class="section-title">条带组图裁剪</div>
-          <div><span class="formula">组图裁剪行 = 从原始图片按 ROI 坐标裁剪该蛋白的一整行条带</span></div>
-          <div><span class="formula">输出 PNG = 左侧蛋白名 + 上方组别标签 + 中央裁剪条带 + 右侧 kDa + 底部样品名</span></div>
-          <div><span class="formula">校正目的灰度 = 目的条带灰度 - 目的背景</span></div>
-          <div><span class="formula">校正内参灰度 = 内参条带灰度 - 内参背景</span></div>
-          <div><span class="formula">归一化灰度 = 校正目的灰度 / 校正内参灰度</span></div>
-          <div><span class="formula">相对表达 = 归一化灰度 / 对照组归一化灰度均值</span></div>
-          <div class="help">建议把每个独立生物学重复作为一行；同一膜上的技术重复可以先取均值再填入。</div>
         </details>
       </section>
 
